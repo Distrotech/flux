@@ -1,0 +1,191 @@
+commit c61d2180ea469aa2c6d14c39277b9b10d777c03f
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Thu Sep 22 15:17:26 2011 +0200
+
+    rename flux->src
+
+commit 2623d3516003e90cb0b24e2c9776ce763edab716
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Tue Sep 20 13:00:50 2011 +0200
+
+    flux: remove workaround for c-mode (dummy data for fusion_call_execute3)
+    
+    Requires new linux-fusion
+
+commit 78899458988ab47ed805402db172022c722ab145
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Mon Sep 19 18:55:44 2011 +0200
+
+    core: remove Dispatch class, use functions instead (even in C++ mode)
+    
+    This patch also adds _Deinit_Dispatch() calls which were missing before (fixes leaks)
+
+commit d244d2640cc3d73850dc0a431ca9fd3c12a43331
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Thu Sep 15 14:24:45 2011 +0200
+
+    flux: added option --include-prefix= to fix build of external projects(e.g sawman)
+
+commit 7cd5d0ffbe22ad33ff5066f1b725d1fa4cffd722
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Wed Sep 14 14:58:25 2011 +0200
+
+    build: fix out-of-tree builds
+
+commit 7c1ec2586048dff0f8a6e357605461019d619b73
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Thu Sep 8 18:37:44 2011 +0200
+
+    fluxcomp: added semicolon to fix warning in generated C code
+
+commit aa272a05bb7203770f6069933ca3002073a44aae
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Thu Sep 8 18:21:38 2011 +0200
+
+    fluxcomp: added C mode for generation C instead of C++
+
+commit 6273735d7c2fce16f578ab52da9a829e9b430498
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Mon Sep 5 16:19:32 2011 +0200
+
+    build: set CXX=g++ for fluxcomp, to avoid the cross compiler from being used
+
+commit b4c8915ed373877c1b6b9b18b6195fd8aa148442
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Jul 29 14:44:30 2011 +0200
+
+    Flux: Generate TypeName_GetID( ptr ) instead of ptr->object.id.
+
+commit 362367383001b932886301301275920721b2c086
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Jul 6 12:50:55 2011 +0200
+
+    Flux: Check fusion_config->secure_fusion to use real interface in slaves as well when false.
+
+commit 6368c4c1ae4c39d7e67473c91660938aa96e46f2
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Jul 6 11:30:11 2011 +0200
+
+    Flux: Added TODO for types/structs.
+
+commit c337d30d2652c55f32e1203bea9ff036ba16fb01
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Jul 2 09:06:56 2011 +0200
+
+    Flux: Implement async calls, comments, reference passing, int/enum array input, optional arrays
+
+commit d5ce4f9fc45ed30865de996f93702bddbc2a5334
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Jun 21 19:35:22 2011 +0200
+
+    Flux: Fix optional object passing
+
+commit 005e354fceec235edd9105b00565dc5dd918bd64
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Jun 21 18:12:37 2011 +0200
+
+    Flux: Implement 'optional' flag, e.g. for FlipUpdate() with NULL region
+
+commit db7255265b1c9b5af02fc1b94fe6f7097774a918
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jun 20 22:05:57 2011 +0200
+
+    Flux: Implement variable sized array arguments, e.g. BatchBlit(rects,points,num)
+
+commit 30ea240d8e2b8a48526519575326ceef45886f7b
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon May 16 21:51:24 2011 +0200
+
+    Flux: On successful dispatch of a request, copy inout arguments from request to return structure.
+
+commit 01bc50a5a66706133422651084b0e81569304fce
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon May 16 21:39:10 2011 +0200
+
+    Flux: Add TODO file
+    
+    - Generate stub real implementation optionally in a serate file.
+    
+    - Generate proper cleanup code in case of multiple object lookups etc.
+
+commit 9ee53d9f4b115b48ae41ab97caa36e9c05c62150
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon May 16 21:28:01 2011 +0200
+
+    Flux: Few fixes for return values (struct,enums...) and inout arguments.
+
+commit 93663bad789f002a24be564affbcda530d55f10d
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon May 16 18:38:54 2011 +0200
+
+    Core: Use Flux to generate all code for hiding FusionCalls behind local/proxy interfaces.
+    
+    This is limited to CoreDFB and CoreWindow at the moment.
+    
+    The Flux compiler generates .cpp and .h containing abstract interface definition
+    and two implementations, one generated 'requestor' implementation making FusionCalls
+    and one 'real' implementation only being declared, implemented manually in _real.cpp file.
+    Next to these there's code generated to dispatch incoming FusionCalls to the real
+    implementation.
+    
+    A C wrapper is also generated for minimizing code changes outside of new files, but the
+    new C++ API will be used in 1.6 branch, when Secure Fusion has stabilized in 1.5 branch.
+
+commit e61ba7b5ef17f28ba2741df997638432547deea3
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon May 16 18:31:09 2011 +0200
+
+    Flux: Introduce new language for interfaces, with parser/code generator.
+    
+    Input looks like this:
+    
+    interface {
+    	name        IWindow
+    	version     1.0
+    	object      CoreWindow
+    
+    	method {
+    		name	Repaint
+    
+    		arg {
+    			name	    left
+    			direction   input
+    			type        struct
+    			typename    DFBRegion
+    		}
+    
+    		arg {
+    			name	    right
+    			direction   input
+    			type        struct
+    			typename    DFBRegion
+    		}
+    
+    		arg {
+    			name	    flags
+    			direction   input
+    			type        enum
+    			typename    DFBSurfaceFlipFlags
+    		}
+    	}
+    
+    	method {
+    		name	Restack
+    
+    		arg {
+    			name	    relative
+    			direction   input
+    			type        object
+    			typename    CoreWindow
+    			optional    yes
+    		}
+    
+    		arg {
+    			name	    relation
+    			direction   input
+    			type        int
+    			typename    int
+    		}
+    	}
+    
+    ...
