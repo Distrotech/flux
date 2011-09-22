@@ -32,9 +32,9 @@
    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#define DIRECT_ENABLE_DEBUG
+//#define USE_LIBDIRECT
 
-#include <config.h>
+//#define DIRECT_ENABLE_DEBUG
 
 #include <list>
 #include <map>
@@ -47,18 +47,55 @@ extern "C" {
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-
+#ifdef USE_LIBDIRECT
+#include <config.h>
 #include <direct/debug.h>
 #include <direct/direct.h>
 #include <direct/list.h>
 #include <direct/mem.h>
 #include <direct/memcpy.h>
+#include <direct/util.h>
+#endif
 }
 
+#define FLUXCOMP_VERSION "0.1"
 
+#ifdef USE_LIBDIRECT
 D_DEBUG_DOMAIN( fluxcomp, "fluxcomp", "Flux Compression Tool" );
+#define FLUX_D_DEBUG_AT(x...) D_DEBUG_AT(x);
+#else
+
+/* fake macros */
+#define FLUX_D_DEBUG_AT(x...)
+#define D_ASSERT(x...)
+#define D_PERROR(x...)
+#define D_UNIMPLEMENTED(x...)
+
+#define DR_OK     0
+#define DR_FAILURE 1
+/* fake types */
+typedef int DirectResult;
+
+/* fake functions */
+
+DirectResult errno2result( int erno )
+{
+     if (!errno)
+          return DR_OK;
+
+     return DR_FAILURE;
+}
+
+void direct_initialize() {};
+void direct_shutdown() {};
+void direct_print_memleaks() {};
+
+#define direct_log_printf(x...)
+
+#endif
 
 /**********************************************************************************************************************/
 
@@ -99,7 +136,7 @@ static const char *filename;
 static void
 print_usage (const char *prg_name)
 {
-     fprintf (stderr, "\nFlux Compression Tool (version %s)\n\n", DIRECTFB_VERSION);
+     fprintf (stderr, "\nFlux Compression Tool (version %s)\n\n", FLUXCOMP_VERSION);
      fprintf (stderr, "Usage: %s [options]\n\n", prg_name);
      fprintf (stderr, "Options:\n");
      fprintf (stderr, "   -h, --help                     Show this help message\n");
@@ -121,7 +158,7 @@ parse_command_line( int argc, char *argv[], bool *c_mode, std::string &include_p
           }
 
           if (strcmp (arg, "-v") == 0 || strcmp (arg, "--version") == 0) {
-               fprintf (stderr, "fluxcomp version %s\n", DIRECTFB_VERSION);
+               fprintf (stderr, "fluxcomp version %s\n", FLUXCOMP_VERSION);
                return false;
           }
 
@@ -367,7 +404,7 @@ public:
                if (!arg->array)
                     continue;
 
-               D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+               FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
                if (arg == this)
                     break;
@@ -515,10 +552,10 @@ Entity::GetEntities( const char     *buf,
 
      Entity *entity = NULL;
 
-     D_DEBUG_AT( fluxcomp, "%s( buf %p, length %zu )\n", __func__, buf, length );
+     FLUX_D_DEBUG_AT( fluxcomp, "%s( buf %p, length %zu )\n", __func__, buf, length );
 
      for (i=0; i<length; i++) {
-          D_DEBUG_AT( fluxcomp, "%*s[%u]  -> '%c' <-\n", level*2, "", level, buf[i] );
+          FLUX_D_DEBUG_AT( fluxcomp, "%*s[%u]  -> '%c' <-\n", level*2, "", level, buf[i] );
 
           if (comment) {
                switch (buf[i]) {
@@ -562,12 +599,12 @@ Entity::GetEntities( const char     *buf,
 
                     default:
                          if (!name.empty()) {
-                              D_DEBUG_AT( fluxcomp, "%*s=-> name = '%s'\n", level*2, "", name.c_str() );
+                              FLUX_D_DEBUG_AT( fluxcomp, "%*s=-> name = '%s'\n", level*2, "", name.c_str() );
 
                               if (!names[level].empty()) {
                                    switch (level) {
                                         case 1:
-                                             D_DEBUG_AT( fluxcomp, "%*s#### setting property '%s' = '%s'\n",
+                                             FLUX_D_DEBUG_AT( fluxcomp, "%*s#### setting property '%s' = '%s'\n",
                                                          level*2, "", names[level].c_str(), name.c_str() );
 
                                              D_ASSERT( entity != NULL );
@@ -600,7 +637,7 @@ Entity::GetEntities( const char     *buf,
 
                                                             entity->Open( &buf[i + 1] );
 
-                                                            D_DEBUG_AT( fluxcomp, "%*s#### open entity %p (Interface)\n", level*2, "", entity );
+                                                            FLUX_D_DEBUG_AT( fluxcomp, "%*s#### open entity %p (Interface)\n", level*2, "", entity );
                                                        }
                                                        if (names[level] == "method") {
                                                             D_ASSERT( entity == NULL );
@@ -609,7 +646,7 @@ Entity::GetEntities( const char     *buf,
 
                                                             entity->Open( &buf[i + 1] );
 
-                                                            D_DEBUG_AT( fluxcomp, "%*s#### open entity %p (Method)\n", level*2, "", entity );
+                                                            FLUX_D_DEBUG_AT( fluxcomp, "%*s#### open entity %p (Method)\n", level*2, "", entity );
                                                        }
                                                        if (names[level] == "arg") {
                                                             D_ASSERT( entity == NULL );
@@ -618,7 +655,7 @@ Entity::GetEntities( const char     *buf,
 
                                                             entity->Open( &buf[i + 1] );
 
-                                                            D_DEBUG_AT( fluxcomp, "%*s#### open entity %p (Arg)\n", level*2, "", entity );
+                                                            FLUX_D_DEBUG_AT( fluxcomp, "%*s#### open entity %p (Arg)\n", level*2, "", entity );
                                                        }
                                                        break;
 
@@ -638,7 +675,7 @@ Entity::GetEntities( const char     *buf,
 
                                              switch (level) {
                                                   case 0:
-                                                       D_DEBUG_AT( fluxcomp, "%*s#### close entity %p\n", level*2, "", entity );
+                                                       FLUX_D_DEBUG_AT( fluxcomp, "%*s#### close entity %p\n", level*2, "", entity );
 
                                                        D_ASSERT( entity != NULL );
 
@@ -658,7 +695,7 @@ Entity::GetEntities( const char     *buf,
                                              break;
                                    }
 
-                                   D_DEBUG_AT( fluxcomp, "%*s=-> level => %u\n", level*2, "", level );
+                                   FLUX_D_DEBUG_AT( fluxcomp, "%*s=-> level => %u\n", level*2, "", level );
                                    break;
 
                               case ' ':
@@ -732,7 +769,7 @@ Method::ArgumentsAsParamDecl() const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->type == "struct") {
                if (arg->direction == "input")
@@ -775,7 +812,7 @@ Method::ArgumentsAsMemberDecl() const
           if (arg->array)
                continue;
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->direction == "input" || arg->direction == "inout") {
                if (arg->optional)
@@ -799,7 +836,7 @@ Method::ArgumentsAsMemberDecl() const
           if (!arg->array)
                continue;
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->direction == "input" || arg->direction == "inout") {
                if (arg->optional)
@@ -824,7 +861,7 @@ Method::ArgumentsOutputAsMemberDecl() const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->direction == "output" || arg->direction == "inout") {
                if (arg->type == "struct")
@@ -850,7 +887,7 @@ Method::ArgumentsAsMemberParams() const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (first)
                first = false;
@@ -908,7 +945,7 @@ Method::ArgumentsInputAssignments() const
           if (arg->array)
                continue;
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->direction == "input" || arg->direction == "inout") {
                if (arg->optional)
@@ -936,7 +973,7 @@ Method::ArgumentsInputAssignments() const
           if (!arg->array)
                continue;
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->direction == "input" || arg->direction == "inout") {
                if (arg->optional)
@@ -969,7 +1006,7 @@ Method::ArgumentsOutputAssignments() const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->direction == "output" || arg->direction == "inout") {
                if (arg->type == "struct" || arg->type == "enum" || arg->type == "int")
@@ -988,7 +1025,7 @@ Method::ArgumentsAssertions() const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if ((arg->type == "struct" || arg->type == "object") && !arg->optional)
                result += std::string("    D_ASSERT( ") + arg->param_name() + " != NULL );\n";
@@ -1005,7 +1042,7 @@ Method::ArgumentsOutputObjectDecl() const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->type == "object" && arg->direction == "output")
                result += std::string("    ") + arg->type_name + " *" + arg->name + " = NULL;\n";
@@ -1022,7 +1059,7 @@ Method::ArgumentsInputObjectDecl() const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->type == "object" && arg->direction == "input")
                result += std::string("    ") + arg->type_name + " *" + arg->name + " = NULL;\n";
@@ -1039,7 +1076,7 @@ Method::ArgumentsOutputObjectCatch( bool c_mode ) const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->type == "object" && arg->direction == "output") {
                char buf[1000];
@@ -1072,7 +1109,7 @@ Method::ArgumentsOutputObjectThrow() const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->type == "object" && arg->direction == "output") {
                char buf[1000];
@@ -1096,7 +1133,7 @@ Method::ArgumentsInoutReturn() const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->direction == "inout") {
                char buf[1000];
@@ -1120,7 +1157,7 @@ Method::ArgumentsInputObjectLookup( bool c_mode ) const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->type == "object" && arg->direction == "input") {
                char buf[1000];
@@ -1170,7 +1207,7 @@ Method::ArgumentsInputObjectUnref() const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->type == "object" && arg->direction == "input") {
                char buf[1000];
@@ -1197,7 +1234,7 @@ Method::ArgumentsNames() const
           const Arg *arg  = dynamic_cast<const Arg*>( *iter );
           bool       last = arg == entities[entities.size()-1];
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           result += arg->param_name();
 
@@ -1221,7 +1258,7 @@ Method::ArgumentsSize( const Interface *face ) const
           if (!arg->array)
                continue;
 
-          D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->direction == "input" || arg->direction == "inout")
                result += " + " + arg->size( false );
@@ -1948,8 +1985,8 @@ main( int argc, char *argv[] )
 
 //     direct_debug_config_domain( "fluxcomp", true );
 
-     direct_config->debug    = true;
-     direct_config->debugmem = true;
+//     direct_config->debug    = true;
+//     direct_config->debugmem = true;
 
      /* Parse the command line. */
      if (!parse_command_line( argc, argv, &c_mode, include_prefix ))

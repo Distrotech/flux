@@ -8,22 +8,12 @@ INCLUDES = \
 	-I$(top_srcdir)/include	\
 	-I$(top_srcdir)/lib
 
-AM_CPPFLAGS = -DDATADIR=\"@DATADIR@\"
-
-
-if DIRECTFB_BUILD_PURE_VOODOO
-NON_PURE_VOODOO_bin_PROGS = 
-else
-NON_PURE_VOODOO_bin_PROGS = \
-	fluxcomp
-endif
-
 bin_PROGRAMS = \
-	$(NON_PURE_VOODOO_bin_PROGS)
+	fluxcomp
 
 
-libdirect = ../lib/direct/libdirect.la
+libdirect =
 
 
 fluxcomp_SOURCES = fluxcomp.cpp
-fluxcomp_LDADD   = $(libdirect) $(OSX_LIBS)
+fluxcomp_LDADD   = $(libdirect)
