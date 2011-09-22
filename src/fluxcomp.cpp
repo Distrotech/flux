@@ -32,14 +32,14 @@
    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-//#define USE_LIBDIRECT
-
 //#define DIRECT_ENABLE_DEBUG
 
 #include <list>
 #include <map>
 #include <string>
 #include <vector>
+
+#include <config.h>
 
 extern "C" {
 #include <errno.h>
@@ -51,7 +51,6 @@ extern "C" {
 #include <sys/mman.h>
 #include <sys/stat.h>
 #ifdef USE_LIBDIRECT
-#include <config.h>
 #include <direct/debug.h>
 #include <direct/direct.h>
 #include <direct/list.h>
@@ -60,8 +59,6 @@ extern "C" {
 #include <direct/util.h>
 #endif
 }
-
-#define FLUXCOMP_VERSION "0.1"
 
 #ifdef USE_LIBDIRECT
 D_DEBUG_DOMAIN( fluxcomp, "fluxcomp", "Flux Compression Tool" );

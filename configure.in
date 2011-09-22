@@ -49,6 +49,13 @@ AC_HEADER_STDC
 AC_PROG_CPP
 AC_PROG_CXX
 
+PKG_CHECK_MODULES([libdirect], [direct], [enable_libdirect="yes"], [enable_libdirect="no"
+  AC_MSG_WARN([*** libdirect not found -- building without libdirect, debug output will be disabled])])
+
+if test "$enable_libdirect" = "yes"; then
+  AC_DEFINE(USE_LIBDIRECT,1,[Define to 1 if you are compiling with libdirect.])
+fi
+
 AC_OUTPUT([
 Makefile
 src/Makefile
