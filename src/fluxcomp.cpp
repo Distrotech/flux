@@ -130,62 +130,85 @@ static const char *filename;
 
 /**********************************************************************************************************************/
 
-static void
-print_usage (const char *prg_name)
+class FluxConfig
 {
-     fprintf (stderr, "\nFlux Compression Tool (version %s)\n\n", FLUXCOMP_VERSION);
-     fprintf (stderr, "Usage: %s [options]\n\n", prg_name);
-     fprintf (stderr, "Options:\n");
-     fprintf (stderr, "   -h, --help                     Show this help message\n");
-     fprintf (stderr, "   -v, --version                  Print version information\n");
-     fprintf (stderr, "\n");
-}
+public:
+     bool           c_mode;
+     bool           identity;
+     std::string    include_prefix;
 
-static bool
-parse_command_line( int argc, char *argv[], bool *c_mode, std::string &include_prefix )
-{
-     int n;
+public:
+     FluxConfig()
+          :
+          c_mode( false ),
+          identity( false )
+     {
+     }
 
-     for (n = 1; n < argc; n++) {
-          const char *arg = argv[n];
+     bool
+     parse_command_line( int argc, char *argv[] )
+     {
+          int n;
 
-          if (strcmp (arg, "-h") == 0 || strcmp (arg, "--help") == 0) {
+          for (n = 1; n < argc; n++) {
+               const char *arg = argv[n];
+
+               if (strcmp (arg, "-h") == 0 || strcmp (arg, "--help") == 0) {
+                    print_usage( argv[0] );
+                    return false;
+               }
+
+               if (strcmp (arg, "-v") == 0 || strcmp (arg, "--version") == 0) {
+                    fprintf( stderr, "fluxcomp version %s\n", FLUXCOMP_VERSION );
+                    return false;
+               }
+
+               if (strcmp (arg, "-c") == 0 || strcmp (arg, "--generate-c") == 0) {
+                    c_mode = true;
+                    continue;
+               }
+
+               if (strcmp (arg, "-i") == 0 || strcmp (arg, "--identity") == 0) {
+                    identity = true;
+                    continue;
+               }
+
+               if (strncmp (arg, "-p=",3) == 0) {
+                    include_prefix = std::string(&arg[3]);
+                    continue;
+               }
+               if (strncmp (arg, "--include-prefix=", 17) == 0) {
+                    include_prefix = std::string(&arg[17]);
+                    continue;
+               }
+
+               if (filename || access( arg, R_OK )) {
+                    print_usage( argv[0] );
+                    return false;
+               }
+
+               filename = arg;
+          }
+
+          if (!filename) {
                print_usage (argv[0]);
                return false;
           }
 
-          if (strcmp (arg, "-v") == 0 || strcmp (arg, "--version") == 0) {
-               fprintf (stderr, "fluxcomp version %s\n", FLUXCOMP_VERSION);
-               return false;
-          }
-
-          if (strcmp (arg, "-c") == 0 || strcmp (arg, "--generate-c") == 0) {
-               *c_mode = true;
-               continue;
-          }
-          if (strncmp (arg, "-p=",3) == 0) {
-               include_prefix = std::string(&arg[3]);
-               continue;
-          }
-          if (strncmp (arg, "--include-prefix=", 17) == 0) {
-               include_prefix = std::string(&arg[17]);
-               continue;
-          }
-          if (filename || access( arg, R_OK )) {
-               print_usage (argv[0]);
-               return false;
-          }
-
-          filename = arg;
+          return true;
      }
 
-     if (!filename) {
-          print_usage (argv[0]);
-          return false;
+     void
+     print_usage( const char *prg_name )
+     {
+          fprintf( stderr, "\nFlux Compiler Tool (version %s)\n\n", FLUXCOMP_VERSION );
+          fprintf( stderr, "Usage: %s [options]\n\n", prg_name );
+          fprintf( stderr, "Options:\n" );
+          fprintf( stderr, "   -h, --help                     Show this help message\n" );
+          fprintf( stderr, "   -v, --version                  Print version information\n" );
+          fprintf( stderr, "\n" );
      }
-
-     return true;
-}
+};
 
 /**********************************************************************************************************************/
 
@@ -327,11 +350,11 @@ public:
      std::string ArgumentsOutputObjectDecl() const;
      std::string ArgumentsInputObjectDecl() const;
 
-     std::string ArgumentsOutputObjectCatch( bool c_mode ) const;
+     std::string ArgumentsOutputObjectCatch( const FluxConfig &config ) const;
      std::string ArgumentsOutputObjectThrow() const;
      std::string ArgumentsInoutReturn() const;
 
-     std::string ArgumentsInputObjectLookup( bool c_mode ) const;
+     std::string ArgumentsInputObjectLookup( const FluxConfig &config ) const;
      std::string ArgumentsInputObjectUnref() const;
 
      std::string ArgumentsNames() const;
@@ -1066,7 +1089,7 @@ Method::ArgumentsInputObjectDecl() const
 }
 
 std::string
-Method::ArgumentsOutputObjectCatch( bool c_mode ) const
+Method::ArgumentsOutputObjectCatch( const FluxConfig &config ) const
 {
      std::string result;
 
@@ -1087,7 +1110,7 @@ Method::ArgumentsOutputObjectCatch( bool c_mode ) const
                          "\n"
                          "    *%s = %s;\n"
                          "\n",
-                         arg->type_name.c_str(), c_mode ? "core_dfb" : "core", arg->name.c_str(), arg->name.c_str(),
+                         arg->type_name.c_str(), config.c_mode ? "core_dfb" : "core", arg->name.c_str(), arg->name.c_str(),
                          arg->name.c_str(), arg->name.c_str(),
                          arg->param_name().c_str(), arg->name.c_str() );
 
@@ -1147,7 +1170,7 @@ Method::ArgumentsInoutReturn() const
 }
 
 std::string
-Method::ArgumentsInputObjectLookup( bool c_mode ) const
+Method::ArgumentsInputObjectLookup( const FluxConfig &config ) const
 {
      std::string result;
 
@@ -1271,11 +1294,10 @@ class FluxComp
 {
 public:
      void GenerateHeader( const Interface   *face,
-                          bool              c_mode,
-                          std::string       include_prefix );
+                          const FluxConfig  &config );
 
      void GenerateSource( const Interface   *face,
-                          bool              c_mode );
+                          const FluxConfig  &config );
 
      void PrintInterface( FILE              *file,
                           const Interface   *face,
@@ -1287,7 +1309,7 @@ public:
 /**********************************************************************************************************************/
 
 void
-FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string include_prefix )
+FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
 {
      FILE        *file;
      std::string  filename = face->object + ".h";
@@ -1315,10 +1337,12 @@ FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string includ
                     "#endif\n"
                     "\n"
                     "\n",
-              license, 
-              face->object.c_str(), 
-              face->object.c_str(), 
-              include_prefix.empty() ? "\"" : "<", include_prefix.c_str(), include_prefix.empty() ? "" : "/", face->object.c_str(), include_prefix.empty() ? "\"" : ">",
+              license,
+              face->object.c_str(),
+              face->object.c_str(),
+              config.include_prefix.empty() ? "\"" : "<", config.include_prefix.c_str(),
+              config.include_prefix.empty() ? "" : "/", face->object.c_str(),
+              config.include_prefix.empty() ? "\"" : ">",
               face->object.c_str() );
 
      /* C Wrappers */
@@ -1366,8 +1390,8 @@ FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string includ
                     " * %s Calls\n"
                     " */\n"
                     "typedef enum {\n",
-               c_mode ? "#endif\n" : "",
-              !c_mode ? "namespace DirectFB {\n" : "",
+               config.c_mode ? "#endif\n" : "",
+              !config.c_mode ? "namespace DirectFB {\n" : "",
               face->object.c_str() );
 
      /* Method IDs */
@@ -1378,7 +1402,7 @@ FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string includ
           const Method *method = dynamic_cast<const Method*>( *iter );
 
           fprintf( file, "    %s%s_%s = %d,\n",
-                   c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), index++ );
+                   config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), index++ );
      }
 
      fprintf( file, "} %sCall;\n"
@@ -1394,7 +1418,7 @@ FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string includ
           fprintf( file, "/*\n"
                          " * %s_%s\n"
                          " */\n"
-                         "typedef struct {\n"                         
+                         "typedef struct {\n"
                          "%s"
                          "} %s%s;\n"
                          "\n"
@@ -1413,7 +1437,7 @@ FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string includ
 
      /* Abstract Interface */
 
-     if (!c_mode) {
+     if (!config.c_mode) {
           PrintInterface( file, face, face->name, "Interface", true );
 
 
@@ -1443,7 +1467,7 @@ FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string includ
      for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
           const Method *method = dynamic_cast<const Method*>( *iter );
 
-          if (!c_mode) {
+          if (!config.c_mode) {
                fprintf( file, "    virtual DFBResult %s(\n"
                               "%s\n"
                               "    );\n"
@@ -1460,7 +1484,7 @@ FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string includ
           }
      }
 
-     if (!c_mode) {
+     if (!config.c_mode) {
           fprintf( file, "};\n" );
 
 
@@ -1490,7 +1514,7 @@ FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string includ
      for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
           const Method *method = dynamic_cast<const Method*>( *iter );
 
-          if (!c_mode) {
+          if (!config.c_mode) {
                fprintf( file, "    virtual DFBResult %s(\n"
                               "%s\n"
                               "    );\n"
@@ -1508,8 +1532,8 @@ FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string includ
           }
      }
 
-     if (!c_mode) 
-          fprintf( file, "};\n" 
+     if (!config.c_mode)
+          fprintf( file, "};\n"
                          "\n" );
 
      fprintf( file, "\n"
@@ -1524,7 +1548,7 @@ FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string includ
               face->object.c_str(), face->object.c_str() );
 
 
-     if (!c_mode)
+     if (!config.c_mode)
           fprintf( file, "\n"
                          "}\n" );
 
@@ -1532,7 +1556,7 @@ FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string includ
                     "\n"
                     "#endif\n" );
 
-     if (!c_mode) 
+     if (!config.c_mode)
           fprintf( file, "\n"
                          "#endif\n" );
 
@@ -1540,12 +1564,12 @@ FluxComp::GenerateHeader( const Interface *face, bool c_mode, std::string includ
 }
 
 void
-FluxComp::GenerateSource( const Interface *face, bool c_mode )
+FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
 {
      FILE        *file;
      std::string  filename = face->object;
 
-     if (!c_mode)
+     if (!config.c_mode)
           filename += ".cpp";
      else
           filename += ".c";
@@ -1564,7 +1588,7 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
                     "\n",
               license, face->object.c_str() );
 
-     if (!c_mode)
+     if (!config.c_mode)
           fprintf( file, "extern \"C\" {\n" );
 
      fprintf( file, "#include <directfb_util.h>\n"
@@ -1578,7 +1602,7 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
                     "\n"
                     "#include <core/core.h>\n" );
 
-     if (!c_mode)
+     if (!config.c_mode)
           fprintf( file, "}\n" );
 
      fprintf( file, "\n"
@@ -1593,7 +1617,7 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
      for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
           const Method *method = dynamic_cast<const Method*>( *iter );
 
-          if (!c_mode) {
+          if (!config.c_mode) {
                fprintf( file, "DFBResult\n"
                               "%s_%s(\n"
                               "                    %-40s  *obj%s\n"
@@ -1666,7 +1690,7 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
                     "}\n"
                     "\n",
               face->object.c_str(), face->object.c_str(),
-              c_mode ? "" : "DirectFB::", face->object.c_str() );
+              config.c_mode ? "" : "DirectFB::", face->object.c_str() );
 
 
      fprintf( file, "void %s_Init_Dispatch(\n"
@@ -1694,7 +1718,7 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
      fprintf( file, "/*********************************************************************************************************************/\n"
                     "\n" );
 
-     if (!c_mode) {
+     if (!config.c_mode) {
           fprintf( file, "namespace DirectFB {\n"
                          "\n"
                          "\n" );
@@ -1705,7 +1729,7 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
      for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
           const Method *method = dynamic_cast<const Method*>( *iter );
 
-          if (!c_mode) {
+          if (!config.c_mode) {
                fprintf( file, "\n"
                               "DFBResult\n"
                               "%s_Requestor::%s(\n"
@@ -1754,10 +1778,10 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
                         face->object.c_str(), face->name.c_str(),
                         method->ArgumentsAssertions().c_str(),
                         method->ArgumentsInputAssignments().c_str(),
-                        face->object.c_str(), c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face ).c_str(),
+                        face->object.c_str(), config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face ).c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
                         method->ArgumentsOutputAssignments().c_str(),
-                        method->ArgumentsOutputObjectCatch( c_mode ).c_str() );
+                        method->ArgumentsOutputObjectCatch( config ).c_str() );
           }
           else {
                fprintf( file, "{\n"
@@ -1795,11 +1819,11 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
                         face->object.c_str(), face->name.c_str(),
                         method->ArgumentsAssertions().c_str(),
                         method->ArgumentsInputAssignments().c_str(),
-                        face->object.c_str(), c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face ).c_str(),
+                        face->object.c_str(), config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face ).c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
                         face->object.c_str(), method->name.c_str(),
                         method->ArgumentsOutputAssignments().c_str(),
-                        method->ArgumentsOutputObjectCatch( c_mode ).c_str() );
+                        method->ArgumentsOutputObjectCatch( config ).c_str() );
           }
      }
 
@@ -1807,12 +1831,9 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
 
      fprintf( file, "/*********************************************************************************************************************/\n"
                     "\n"
-                    "DFBResult\n" );
-
-     fprintf( file, "%sDispatch__Dispatch( %s *obj,\n",
-                   face->object.c_str(), face->object.c_str());
-
-     fprintf( file, "                                FusionID      caller,\n"
+                    "static DFBResult\n"
+                    "__%sDispatch__Dispatch( %s *obj,\n"
+                    "                                FusionID      caller,\n"
                     "                                int           method,\n"
                     "                                void         *ptr,\n"
                     "                                unsigned int  length,\n"
@@ -1822,16 +1843,15 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
                     "{\n"
                     "    D_UNUSED\n"
                     "    DFBResult ret;\n"
-                    "\n"
-                    "    D_DEBUG_AT( DirectFB_%s, \"%sDispatch::%%s()\\n\", __FUNCTION__ );\n",
+                    "\n",
               face->object.c_str(), face->object.c_str() );
 
-     if (!c_mode)
+     if (!config.c_mode)
           fprintf( file, "\n"
                          "    DirectFB::%s_Real real( core_dfb, obj );\n"
                          "\n",
                    face->name.c_str() );
-          
+
      fprintf( file, "\n"
                     "    switch (method) {\n" );
 
@@ -1840,7 +1860,7 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
      for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
           const Method *method = dynamic_cast<const Method*>( *iter );
 
-          if (!c_mode) 
+          if (!config.c_mode)
                fprintf( file, "        case %s_%s: {\n", face->object.c_str(), method->name.c_str() );
           else
                fprintf( file, "        case _%s_%s: {\n", face->object.c_str(), method->name.c_str() );
@@ -1858,9 +1878,9 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
                         method->ArgumentsOutputObjectDecl().c_str(),
                         face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
-                        method->ArgumentsInputObjectLookup( c_mode ).c_str() );
+                        method->ArgumentsInputObjectLookup( config ).c_str() );
 
-               if (!c_mode)
+               if (!config.c_mode)
                     fprintf( file, "            real.%s( %s );\n",
                              method->name.c_str(), method->ArgumentsAsMemberParams().c_str() );
                else
@@ -1889,9 +1909,9 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
                         face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(),
                         face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
-                        method->ArgumentsInputObjectLookup( c_mode ).c_str() );
+                        method->ArgumentsInputObjectLookup( config ).c_str() );
 
-               if (!c_mode)
+               if (!config.c_mode)
                     fprintf( file, "            return_args->result = real.%s( %s );\n",
                              method->name.c_str(), method->ArgumentsAsMemberParams().c_str() );
                else
@@ -1922,7 +1942,42 @@ FluxComp::GenerateSource( const Interface *face, bool c_mode )
                     "    return DFB_NOSUCHMETHOD;\n"
                     "}\n" );
 
-     if (!c_mode)
+
+     fprintf( file, "/*********************************************************************************************************************/\n"
+                    "\n"
+                    "DFBResult\n"
+                    "%sDispatch__Dispatch( %s *obj,\n"
+                    "                                FusionID      caller,\n"
+                    "                                int           method,\n"
+                    "                                void         *ptr,\n"
+                    "                                unsigned int  length,\n"
+                    "                                void         *ret_ptr,\n"
+                    "                                unsigned int  ret_size,\n"
+                    "                                unsigned int *ret_length )\n"
+                    "{\n"
+                    "    DFBResult ret;\n"
+                    "\n"
+                    "    D_DEBUG_AT( DirectFB_%s, \"%sDispatch::%%s()\\n\", __FUNCTION__ );\n",
+              face->object.c_str(), face->object.c_str(),
+              face->object.c_str(), face->object.c_str());
+
+     if (config.identity)
+          fprintf( file, "\n"
+                         "    Core_PushIdentity( caller );\n" );
+
+     fprintf( file, "\n"
+                    "    ret = __%sDispatch__Dispatch( obj, caller, method, ptr, length, ret_ptr, ret_size, ret_length );\n",
+              face->object.c_str() );
+
+     if (config.identity)
+          fprintf( file, "\n"
+                         "    Core_PopIdentity();\n" );
+
+     fprintf( file, "\n"
+                    "    return ret;\n"
+                    "}\n" );
+
+     if (!config.c_mode)
           fprintf( file, "\n"
                          "}\n" );
 
@@ -1975,8 +2030,7 @@ main( int argc, char *argv[] )
      DirectResult   ret;
      Entity::vector faces;
 
-     bool           c_mode = false;
-     std::string    include_prefix;
+     FluxConfig     config;
 
      direct_initialize();
 
@@ -1986,7 +2040,7 @@ main( int argc, char *argv[] )
 //     direct_config->debugmem = true;
 
      /* Parse the command line. */
-     if (!parse_command_line( argc, argv, &c_mode, include_prefix ))
+     if (!config.parse_command_line( argc, argv ))
           return -1;
 
      ret = Entity::GetEntities( filename, faces );
@@ -1996,8 +2050,8 @@ main( int argc, char *argv[] )
           for (Entity::vector::const_iterator iter = faces.begin(); iter != faces.end(); iter++) {
                const Interface *face = dynamic_cast<const Interface*>( *iter );
 
-               fc.GenerateHeader( face, c_mode, include_prefix );
-               fc.GenerateSource( face, c_mode );
+               fc.GenerateHeader( face, config );
+               fc.GenerateSource( face, config );
           }
      }
 
