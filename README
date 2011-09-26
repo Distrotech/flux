@@ -1,0 +1,5 @@
+flux is an interface description language used by DirectFB
+
+fluxcomp compiles .flux files to .cpp or .c files
+
+You need this package when compiling DirectFB from git
