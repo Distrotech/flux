@@ -1384,7 +1384,7 @@ Method::ArgumentsSizeReturn( const Interface *face ) const
 {
      std::string result = "sizeof(";
 
-     result += face->object + name + ")";
+     result += face->object + name + "Return)";
 
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
