@@ -358,7 +358,8 @@ public:
      std::string ArgumentsInputObjectUnref() const;
 
      std::string ArgumentsNames() const;
-     std::string ArgumentsSize( const Interface *face ) const;
+     std::string ArgumentsSize( const Interface *face, bool output ) const;
+     std::string ArgumentsSizeReturn( const Interface *face ) const;
 };
 
 class Arg : public Entity
@@ -389,6 +390,7 @@ public:
 
      bool                     array;
      std::string              count;
+     std::string              max;
 
 
 public:
@@ -404,15 +406,35 @@ public:
      {
           if (array) {
                if (use_args)
-                    return std::string("sizeof(") + type_name + ") * args->" + count;
+                    return std::string("args->") + count + " * sizeof(" + type_name + ")";
                else
-                    return std::string("sizeof(") + type_name + ") * " + count;
+                    return count + " * sizeof(" + type_name + ")";
           }
 
           return std::string("sizeof(") + type_name + ")";
      }
 
-     std::string offset( const Method *method, bool use_args ) const
+     std::string sizeReturn() const
+     {
+          if (array)
+               return std::string("return_args->") + count + " * sizeof(" + type_name + ")";
+
+          return std::string("sizeof(") + type_name + ")";
+     }
+
+     std::string sizeMax( bool use_args ) const
+     {
+          if (array) {
+               if (use_args)
+                    return std::string("args->") + max + " * sizeof(" + type_name + ")";
+               else
+                    return max + " * sizeof(" + type_name + ")";
+          }
+
+          return std::string("sizeof(") + type_name + ")";
+     }
+
+     std::string offset( const Method *method, bool use_args, bool output ) const
      {
           D_ASSERT( array == true );
 
@@ -429,7 +451,8 @@ public:
                if (arg == this)
                     break;
 
-               if (arg->direction == "input" || arg->direction == "inout")
+               if ((output && arg->direction == "output") ||
+                   (!output && arg->direction == "input") || arg->direction == "inout")
                     result += std::string(" + ") + arg->size( use_args );
           }
 
@@ -551,6 +574,11 @@ Arg::SetProperty( const std::string &name,
      if (name == "count") {
           array = true;
           count = value;
+          return;
+     }
+
+     if (name == "max") {
+          max = value;
           return;
      }
 }
@@ -881,6 +909,9 @@ Method::ArgumentsOutputAsMemberDecl() const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
+          if (arg->array)
+               continue;
+
           FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->direction == "output" || arg->direction == "inout") {
@@ -892,6 +923,25 @@ Method::ArgumentsOutputAsMemberDecl() const
                     result = PrintMember( result, arg->type_name, "", arg->name );
                else if (arg->type == "object")
                     result = PrintMember( result, "u32", "", arg->name + "_id" );
+          }
+     }
+
+     for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
+          char       buf[300];
+          const Arg *arg = dynamic_cast<const Arg*>( *iter );
+
+          if (!arg->array)
+               continue;
+
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+
+          if (arg->direction == "output" || arg->direction == "inout") {
+               if (arg->optional)
+                    result = PrintMember( result, "bool", "", arg->name + "_set" );
+
+               snprintf( buf, sizeof(buf), "    /* '%s' %s follow (%s) */\n", arg->count.c_str(), arg->type_name.c_str(), arg->name.c_str() );
+
+               result += buf;
           }
      }
 
@@ -920,7 +970,7 @@ Method::ArgumentsAsMemberParams() const
 
                if (arg->array) {
                     if (arg->type == "struct" || arg->type == "enum" || arg->type == "int")
-                         result += std::string("(") + arg->type_name + "*) ((char*)(args + 1)" + arg->offset( this, true ) + ")";
+                         result += std::string("(") + arg->type_name + "*) ((char*)(args + 1)" + arg->offset( this, true, false ) + ")";
                     else if (arg->type == "object")
                          D_UNIMPLEMENTED();
                }
@@ -940,14 +990,25 @@ Method::ArgumentsAsMemberParams() const
           }
 
           if (arg->direction == "output") {
-               if (arg->type == "struct")
-                    result += std::string("&return_args->") + arg->name;
-               else if (arg->type == "enum")
-                    result += std::string("&return_args->") + arg->name;
-               else if (arg->type == "int")
-                    result += std::string("&return_args->") + arg->name;
-               else if (arg->type == "object")
-                    result += std::string("&") + arg->name;
+               if (arg->optional)
+                    D_UNIMPLEMENTED();
+
+               if (arg->array) {
+                    if (arg->type == "struct" || arg->type == "enum" || arg->type == "int")
+                         result += std::string("(") + arg->type_name + "*) ((char*)(return_args + 1)" + arg->offset( this, true, true ) + ")";
+                    else if (arg->type == "object")
+                         D_UNIMPLEMENTED();
+               }
+               else {
+                    if (arg->type == "struct")
+                         result += std::string("&return_args->") + arg->name;
+                    else if (arg->type == "enum")
+                         result += std::string("&return_args->") + arg->name;
+                    else if (arg->type == "int")
+                         result += std::string("&return_args->") + arg->name;
+                    else if (arg->type == "object")
+                         result += std::string("&") + arg->name;
+               }
           }
      }
 
@@ -972,17 +1033,17 @@ Method::ArgumentsInputAssignments() const
                     result += std::string("  if (") + arg->name + ") {\n";
 
                if (arg->type == "struct")
-                    result += std::string("    block->") + arg->name + " = *" + arg->name + ";\n";
+                    result += std::string("    args->") + arg->name + " = *" + arg->name + ";\n";
                else if (arg->type == "enum" || arg->type == "int")
-                    result += std::string("    block->") + arg->name + " = " + arg->name + ";\n";
+                    result += std::string("    args->") + arg->name + " = " + arg->name + ";\n";
                else if (arg->type == "object")
-                    result += std::string("    block->") + arg->name + "_id = " + arg->type_name + "_GetID( " + arg->name + " );\n";
+                    result += std::string("    args->") + arg->name + "_id = " + arg->type_name + "_GetID( " + arg->name + " );\n";
 
                if (arg->optional) {
-                    result += std::string("    block->") + arg->name + "_set = true;\n";
+                    result += std::string("    args->") + arg->name + "_set = true;\n";
                     result += std::string("  }\n");
                     result += std::string("  else\n");
-                    result += std::string("    block->") + arg->name + "_set = false;\n";
+                    result += std::string("    args->") + arg->name + "_set = false;\n";
                }
           }
      }
@@ -1000,15 +1061,15 @@ Method::ArgumentsInputAssignments() const
                     result += std::string("  if (") + arg->name + ") {\n";
 
                if (arg->type == "struct" || arg->type == "enum" || arg->type == "int")
-                    result += std::string("    direct_memcpy( (char*) (block + 1)") + arg->offset( this, false ) + ", " + arg->name + ", " + arg->size( false ) + " );\n";
+                    result += std::string("    direct_memcpy( (char*) (args + 1)") + arg->offset( this, false, false ) + ", " + arg->name + ", " + arg->size( false ) + " );\n";
                else if (arg->type == "object")
                     D_UNIMPLEMENTED();
 
                if (arg->optional) {
-                    result += std::string("    block->") + arg->name + "_set = true;\n";
+                    result += std::string("    args->") + arg->name + "_set = true;\n";
                     result += std::string("  }\n");
                     result += std::string("  else {\n");
-                    result += std::string("    block->") + arg->name + "_set = false;\n";
+                    result += std::string("    args->") + arg->name + "_set = false;\n";
                     result += std::string("    ") + arg->name + " = 0;\n"; // FIXME: this sets num to 0 to avoid dispatch errors, but what if num is before this?
                     result += std::string("  }\n");
                }
@@ -1026,11 +1087,33 @@ Method::ArgumentsOutputAssignments() const
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
 
+          if (arg->array)
+               continue;
+
           FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->direction == "output" || arg->direction == "inout") {
                if (arg->type == "struct" || arg->type == "enum" || arg->type == "int")
-                    result += std::string("    *") + arg->param_name() + " = return_block." + arg->name + ";\n";
+                    result += std::string("    *") + arg->param_name() + " = return_args->" + arg->name + ";\n";
+          }
+     }
+
+     for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
+          const Arg *arg = dynamic_cast<const Arg*>( *iter );
+
+          if (!arg->array)
+               continue;
+
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+
+          if (arg->direction == "output" || arg->direction == "inout") {
+               if (arg->optional)
+                    D_UNIMPLEMENTED();
+
+               if (arg->type == "struct" || arg->type == "enum" || arg->type == "int")
+                    result += std::string("    direct_memcpy( ret_") + arg->name + ", (char*) (return_args + 1)" + arg->offset( this, false, true ) + ", " + arg->sizeReturn() + " );\n";
+               else if (arg->type == "object")
+                    D_UNIMPLEMENTED();
           }
      }
 
@@ -1102,9 +1185,9 @@ Method::ArgumentsOutputObjectCatch( const FluxConfig &config ) const
                char buf[1000];
 
                snprintf( buf, sizeof(buf),
-                         "    ret = (DFBResult) %s_Catch( %s, return_block.%s_id, &%s );\n"
+                         "    ret = (DFBResult) %s_Catch( %s, return_args.%s_id, &%s );\n"
                          "    if (ret) {\n"
-                         "         D_DERROR( ret, \"%%s: Catching %s by ID %%u failed!\\n\", __FUNCTION__, return_block.%s_id );\n"
+                         "         D_DERROR( ret, \"%%s: Catching %s by ID %%u failed!\\n\", __FUNCTION__, return_args.%s_id );\n"
                          "         return ret;\n"
                          "    }\n"
                          "\n"
@@ -1266,7 +1349,38 @@ Method::ArgumentsNames() const
 }
 
 std::string
-Method::ArgumentsSize( const Interface *face ) const
+Method::ArgumentsSize( const Interface *face, bool output ) const
+{
+     std::string result = "sizeof(";
+
+     if (output)
+          result += face->object + name + "Return)";
+     else
+          result += face->object + name + ")";
+
+     for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
+          const Arg *arg = dynamic_cast<const Arg*>( *iter );
+
+          if (!arg->array)
+               continue;
+
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+
+          if (output) {
+               if (arg->direction == "output" || arg->direction == "inout")
+                    result += " + " + arg->sizeMax( false );
+          }
+          else {
+               if (arg->direction == "input" || arg->direction == "inout")
+                    result += " + " + arg->size( false );
+          }
+     }
+
+     return result;
+}
+
+std::string
+Method::ArgumentsSizeReturn( const Interface *face ) const
 {
      std::string result = "sizeof(";
 
@@ -1280,8 +1394,8 @@ Method::ArgumentsSize( const Interface *face ) const
 
           FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
-          if (arg->direction == "input" || arg->direction == "inout")
-               result += " + " + arg->size( false );
+          if (arg->direction == "output" || arg->direction == "inout")
+               result += " + " + arg->sizeReturn();
      }
 
      return result;
@@ -1753,7 +1867,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                fprintf( file, "{\n"
                               "    DFBResult           ret;\n"
                               "%s"
-                              "    %s%s       *block = (%s%s*) alloca( %s );\n"
+                              "    %s%s       *args = (%s%s*) alloca( %s );\n"
                               "\n"
                               "    D_DEBUG_AT( DirectFB_%s, \"%s_Requestor::%%s()\\n\", __FUNCTION__ );\n"
                               "\n"
@@ -1761,7 +1875,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "\n"
                               "%s"
                               "\n"
-                              "    ret = (DFBResult) %s_Call( obj, FCEF_ONEWAY, %s%s_%s, block, %s, NULL, 0, NULL );\n"
+                              "    ret = (DFBResult) %s_Call( obj, FCEF_ONEWAY, %s%s_%s, args, %s, NULL, 0, NULL );\n"
                               "    if (ret) {\n"
                               "        D_DERROR( ret, \"%%s: %s_Call( %s_%s ) failed!\\n\", __FUNCTION__ );\n"
                               "        return ret;\n"
@@ -1774,11 +1888,11 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "}\n"
                               "\n",
                         method->ArgumentsOutputObjectDecl().c_str(),
-                        face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face ).c_str(),
+                        face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(),
                         face->object.c_str(), face->name.c_str(),
                         method->ArgumentsAssertions().c_str(),
                         method->ArgumentsInputAssignments().c_str(),
-                        face->object.c_str(), config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face ).c_str(),
+                        face->object.c_str(), config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
                         method->ArgumentsOutputAssignments().c_str(),
                         method->ArgumentsOutputObjectCatch( config ).c_str() );
@@ -1787,8 +1901,8 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                fprintf( file, "{\n"
                               "    DFBResult           ret;\n"
                               "%s"
-                              "    %s%s       *block = (%s%s*) alloca( %s );\n"
-                              "    %s%sReturn  return_block;\n"
+                              "    %s%s       *args = (%s%s*) alloca( %s );\n"
+                              "    %s%sReturn *return_args = (%s%sReturn*) alloca( %s );\n"
                               "\n"
                               "    D_DEBUG_AT( DirectFB_%s, \"%s_Requestor::%%s()\\n\", __FUNCTION__ );\n"
                               "\n"
@@ -1796,15 +1910,15 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "\n"
                               "%s"
                               "\n"
-                              "    ret = (DFBResult) %s_Call( obj, FCEF_NONE, %s%s_%s, block, %s, &return_block, sizeof(return_block), NULL );\n"
+                              "    ret = (DFBResult) %s_Call( obj, FCEF_NONE, %s%s_%s, args, %s, return_args, %s, NULL );\n"
                               "    if (ret) {\n"
                               "        D_DERROR( ret, \"%%s: %s_Call( %s_%s ) failed!\\n\", __FUNCTION__ );\n"
                               "        return ret;\n"
                               "    }\n"
                               "\n"
-                              "    if (return_block.result) {\n"
-                              "         D_DERROR( return_block.result, \"%%s: %s_%s failed!\\n\", __FUNCTION__ );\n"
-                              "         return return_block.result;\n"
+                              "    if (return_args->result) {\n"
+                              "         D_DERROR( return_args->result, \"%%s: %s_%s failed!\\n\", __FUNCTION__ );\n"
+                              "         return return_args->result;\n"
                               "    }\n"
                               "\n"
                               "%s"
@@ -1814,12 +1928,12 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "}\n"
                               "\n",
                         method->ArgumentsOutputObjectDecl().c_str(),
-                        face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face ).c_str(),
-                        face->object.c_str(), method->name.c_str(),
+                        face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(),
+                        face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, true ).c_str(),
                         face->object.c_str(), face->name.c_str(),
                         method->ArgumentsAssertions().c_str(),
                         method->ArgumentsInputAssignments().c_str(),
-                        face->object.c_str(), config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face ).c_str(),
+                        face->object.c_str(), config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(), method->ArgumentsSize( face, true ).c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
                         face->object.c_str(), method->name.c_str(),
                         method->ArgumentsOutputAssignments().c_str(),
@@ -1924,7 +2038,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "%s"
                               "            }\n"
                               "\n"
-                              "            *ret_length = sizeof(%s%sReturn);\n"
+                              "            *ret_length = %s;\n"
                               "\n"
                               "%s"
                               "            return DFB_OK;\n"
@@ -1932,7 +2046,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "\n",
                         method->ArgumentsOutputObjectThrow().c_str(),
                         method->ArgumentsInoutReturn().c_str(),
-                        face->object.c_str(), method->name.c_str(),
+                        method->ArgumentsSizeReturn( face ).c_str(),
                         method->ArgumentsInputObjectUnref().c_str() );
           }
      }
