@@ -1185,9 +1185,9 @@ Method::ArgumentsOutputObjectCatch( const FluxConfig &config ) const
                char buf[1000];
 
                snprintf( buf, sizeof(buf),
-                         "    ret = (DFBResult) %s_Catch( %s, return_args.%s_id, &%s );\n"
+                         "    ret = (DFBResult) %s_Catch( %s, return_args->%s_id, &%s );\n"
                          "    if (ret) {\n"
-                         "         D_DERROR( ret, \"%%s: Catching %s by ID %%u failed!\\n\", __FUNCTION__, return_args.%s_id );\n"
+                         "         D_DERROR( ret, \"%%s: Catching %s by ID %%u failed!\\n\", __FUNCTION__, return_args->%s_id );\n"
                          "         return ret;\n"
                          "    }\n"
                          "\n"
