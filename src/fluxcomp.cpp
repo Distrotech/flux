@@ -136,12 +136,14 @@ public:
      bool           c_mode;
      bool           identity;
      std::string    include_prefix;
+     bool           no_direct;
 
 public:
      FluxConfig()
           :
           c_mode( false ),
-          identity( false )
+          identity( false ),
+          no_direct( false )
      {
      }
 
@@ -170,6 +172,11 @@ public:
 
                if (strcmp (arg, "-i") == 0 || strcmp (arg, "--identity") == 0) {
                     identity = true;
+                    continue;
+               }
+
+               if (strcmp (arg, "--no-direct") == 0) {
+                    no_direct = true;
                     continue;
                }
 
@@ -284,6 +291,7 @@ public:
      std::string              name;
      std::string              version;
      std::string              object;
+     std::string              dispatch;
 };
 
 class Method : public Entity
@@ -478,6 +486,7 @@ Interface::Dump() const
      direct_log_printf( NULL, "  Name             %s\n", name.c_str() );
      direct_log_printf( NULL, "  Version          %s\n", version.c_str() );
      direct_log_printf( NULL, "  Object           %s\n", object.c_str() );
+     direct_log_printf( NULL, "  Dispatch         %s\n", dispatch.c_str() );
 }
 
 void
@@ -523,6 +532,12 @@ Interface::SetProperty( const std::string &name,
 
      if (name == "object") {
           object = value;
+          dispatch = value;
+          return;
+     }
+
+     if (name == "dispatch") {
+          dispatch = value;
           return;
      }
 }
@@ -1482,7 +1497,7 @@ FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
                     "                    FusionCall           *call\n"
                     ");\n"
                     "\n",
-              face->object.c_str(), face->object.c_str() );
+              face->object.c_str(), face->dispatch.c_str() );
 
      fprintf( file, "void  %s_Deinit_Dispatch(\n"
                     "                    FusionCall           *call\n"
@@ -1574,8 +1589,8 @@ FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
                          "    }\n"
                          "\n"
                          "public:\n",
-                   face->name.c_str(), face->name.c_str(), face->object.c_str(),
-                   face->name.c_str(), face->object.c_str(), face->name.c_str() );
+                   face->name.c_str(), face->name.c_str(), face->dispatch.c_str(),
+                   face->name.c_str(), face->dispatch.c_str(), face->name.c_str() );
      }
 
      for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
@@ -1593,7 +1608,7 @@ FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
                fprintf( file, "DFBResult %s_Real__%s( %s *obj%s\n"
                               "%s );\n"
                               "\n",
-                        face->name.c_str(), method->name.c_str(), face->object.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ",",
+                        face->name.c_str(), method->name.c_str(), face->dispatch.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ",",
                         method->ArgumentsAsParamDecl().c_str() );
           }
      }
@@ -1659,7 +1674,7 @@ FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
                     "                    void         *ret_ptr,\n"
                     "                    unsigned int  ret_size,\n"
                     "                    unsigned int *ret_length );\n",
-              face->object.c_str(), face->object.c_str() );
+              face->object.c_str(), face->dispatch.c_str() );
 
 
      if (!config.c_mode)
@@ -1737,23 +1752,27 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "                    %-40s  *obj%s\n"
                               "%s\n"
                               ")\n"
-                              "{\n"
-                              "    if (!fusion_config->secure_fusion || dfb_core_is_master( core_dfb )) {\n"
-                              "        DirectFB::%s_Real real( core_dfb, obj );\n"
-                              "\n"
-                              "        return real.%s( %s );\n"
-                              "    }\n"
-                              "\n"
-                              "    DirectFB::%s_Requestor requestor( core_dfb, obj );\n"
+                              "{\n",
+                        face->object.c_str(), method->name.c_str(),
+                        face->object.c_str(), method->entities.empty() ? "" : ",",
+                        method->ArgumentsAsParamDecl().c_str() );
+
+               if (!config.no_direct) {
+                    fprintf( file, "    if (!fusion_config->secure_fusion || dfb_core_is_master( core_dfb )) {\n"
+                                   "        DirectFB::%s_Real real( core_dfb, obj );\n"
+                                   "\n"
+                                   "        return real.%s( %s );\n"
+                                   "    }\n"
+                                   "\n",
+                             face->name.c_str(),
+                             method->name.c_str(), method->ArgumentsNames().c_str() );
+               }
+
+               fprintf( file, "    DirectFB::%s_Requestor requestor( core_dfb, obj );\n"
                               "\n"
                               "    return requestor.%s( %s );\n"
                               "}\n"
                               "\n",
-                        face->object.c_str(), method->name.c_str(),
-                        face->object.c_str(), method->entities.empty() ? "" : ",",
-                        method->ArgumentsAsParamDecl().c_str(),
-                        face->name.c_str(),
-                        method->name.c_str(), method->ArgumentsNames().c_str(),
                         face->name.c_str(),
                         method->name.c_str(), method->ArgumentsNames().c_str() );
           }
@@ -1763,18 +1782,22 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "                    %-40s  *obj%s\n"
                               "%s\n"
                               ")\n"
-                              "{\n"
-                              "    if (!fusion_config->secure_fusion || dfb_core_is_master( core_dfb )) {\n"
-                              "        return %s_Real__%s( obj%s%s );\n"
-                              "    }\n"
-                              "\n"
-                              "    return %s_Requestor__%s( obj%s%s );\n"
-                              "}\n"
-                              "\n",
+                              "{\n",
                         face->object.c_str(), method->name.c_str(),
                         face->object.c_str(), method->entities.empty() ? "" : ",",
-                        method->ArgumentsAsParamDecl().c_str(),
-                        face->name.c_str(), method->name.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ", ", method->ArgumentsNames().c_str(),
+                        method->ArgumentsAsParamDecl().c_str() );
+
+               if (!config.no_direct) {
+                    fprintf( file, "    if (!fusion_config->secure_fusion || dfb_core_is_master( core_dfb )) {\n"
+                                   "        return %s_Real__%s( obj%s%s );\n"
+                                   "    }\n"
+                                   "\n",
+                             face->name.c_str(), method->name.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ", ", method->ArgumentsNames().c_str() );
+               }
+
+               fprintf( file, "    return %s_Requestor__%s( obj%s%s );\n"
+                              "}\n"
+                              "\n",
                         face->name.c_str(), method->name.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ", ", method->ArgumentsNames().c_str() );
           }
 
@@ -1803,7 +1826,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                     "    return FCHR_RETURN;\n"
                     "}\n"
                     "\n",
-              face->object.c_str(), face->object.c_str(),
+              face->dispatch.c_str(), face->dispatch.c_str(),
               config.c_mode ? "" : "DirectFB::", face->object.c_str() );
 
 
@@ -1813,7 +1836,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                     "                    FusionCall           *call\n"
                     ")\n"
                     "{\n",
-                    face->object.c_str(), face->object.c_str() );
+                    face->object.c_str(), face->dispatch.c_str() );
 
      fprintf( file, "    fusion_call_init3( call, %s_Dispatch, obj, core->world );\n"
                     "}\n"
@@ -1958,7 +1981,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                     "    D_UNUSED\n"
                     "    DFBResult ret;\n"
                     "\n",
-              face->object.c_str(), face->object.c_str() );
+              face->object.c_str(), face->dispatch.c_str() );
 
      if (!config.c_mode)
           fprintf( file, "\n"
@@ -2072,7 +2095,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                     "    DFBResult ret;\n"
                     "\n"
                     "    D_DEBUG_AT( DirectFB_%s, \"%sDispatch::%%s()\\n\", __FUNCTION__ );\n",
-              face->object.c_str(), face->object.c_str(),
+              face->object.c_str(), face->dispatch.c_str(),
               face->object.c_str(), face->object.c_str());
 
      if (config.identity)
