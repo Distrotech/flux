@@ -422,10 +422,21 @@ public:
           return std::string("sizeof(") + type_name + ")";
      }
 
-     std::string sizeReturn() const
+     std::string sizeReturn( const Method *method ) const
      {
-          if (array)
-               return std::string("return_args->") + count + " * sizeof(" + type_name + ")";
+          if (array) {
+               /* Lookup 'count' argument */
+               for (Entity::vector::const_iterator iter = method->entities.begin(); iter != method->entities.end(); iter++) {
+                    const Arg *arg = dynamic_cast<const Arg*>( *iter );
+
+                    if (arg->name == count) {
+                         if (arg->direction == "input")
+                              return std::string("args->") + count + " * sizeof(" + type_name + ")";
+
+                         return std::string("return_args->") + count + " * sizeof(" + type_name + ")";
+                    }
+               }
+          }
 
           return std::string("sizeof(") + type_name + ")";
      }
@@ -1126,7 +1137,7 @@ Method::ArgumentsOutputAssignments() const
                     D_UNIMPLEMENTED();
 
                if (arg->type == "struct" || arg->type == "enum" || arg->type == "int")
-                    result += std::string("    direct_memcpy( ret_") + arg->name + ", (char*) (return_args + 1)" + arg->offset( this, false, true ) + ", " + arg->sizeReturn() + " );\n";
+                    result += std::string("    direct_memcpy( ret_") + arg->name + ", (char*) (return_args + 1)" + arg->offset( this, false, true ) + ", " + arg->sizeReturn( this ) + " );\n";
                else if (arg->type == "object")
                     D_UNIMPLEMENTED();
           }
@@ -1410,7 +1421,7 @@ Method::ArgumentsSizeReturn( const Interface *face ) const
           FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->direction == "output" || arg->direction == "inout")
-               result += " + " + arg->sizeReturn();
+               result += " + " + arg->sizeReturn( this );
      }
 
      return result;
