@@ -1697,12 +1697,15 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
 {
      FILE        *file;
      std::string  filename = face->object;
+     bool         direct   = true;
 
      if (!config.c_mode)
           filename += ".cpp";
      else
           filename += ".c";
 
+     if (config.no_direct || face->object != face->dispatch)
+          direct = false;
 
      file = fopen( filename.c_str(), "w" );
      if (!file) {
@@ -1757,7 +1760,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                         face->object.c_str(), method->entities.empty() ? "" : ",",
                         method->ArgumentsAsParamDecl().c_str() );
 
-               if (!config.no_direct) {
+               if (direct) {
                     fprintf( file, "    if (!fusion_config->secure_fusion || dfb_core_is_master( core_dfb )) {\n"
                                    "        DirectFB::%s_Real real( core_dfb, obj );\n"
                                    "\n"
@@ -1787,7 +1790,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                         face->object.c_str(), method->entities.empty() ? "" : ",",
                         method->ArgumentsAsParamDecl().c_str() );
 
-               if (!config.no_direct) {
+               if (direct) {
                     fprintf( file, "    if (!fusion_config->secure_fusion || dfb_core_is_master( core_dfb )) {\n"
                                    "        return %s_Real__%s( obj%s%s );\n"
                                    "    }\n"
