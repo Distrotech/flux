@@ -56,6 +56,7 @@ extern "C" {
 #include <direct/list.h>
 #include <direct/mem.h>
 #include <direct/memcpy.h>
+#include <direct/messages.h>
 #include <direct/util.h>
 #endif
 }
@@ -69,6 +70,12 @@ D_DEBUG_DOMAIN( fluxcomp, "fluxcomp", "Flux Compression Tool" );
 #define FLUX_D_DEBUG_AT(x...)
 #define D_ASSERT(x...)
 #define D_PERROR(x...)
+#define D_WARN(x...)          \
+     do {                     \
+          printf( x );        \
+          printf( "\n" );     \
+          sleep(5);           \
+     } while (0)
 #define D_UNIMPLEMENTED(x...)
 
 #define DR_OK     0
@@ -365,6 +372,9 @@ public:
      std::string ArgumentsInputObjectLookup( const FluxConfig &config ) const;
      std::string ArgumentsInputObjectUnref() const;
 
+     std::string ArgumentsInputDebug( const FluxConfig &config,
+                                      const Interface  *face ) const;
+
      std::string ArgumentsNames() const;
      std::string ArgumentsSize( const Interface *face, bool output ) const;
      std::string ArgumentsSizeReturn( const Interface *face ) const;
@@ -408,6 +418,43 @@ public:
                return std::string("ret_") + name;
 
           return name;
+     }
+
+     std::string formatCharacter() const
+     {
+          if (type == "int") {
+               if (type_name == "u8"  ||
+                   type_name == "u16" ||
+                   type_name == "u32")
+                    return "u";
+
+               if (type_name == "s8"  ||
+                   type_name == "s16" ||
+                   type_name == "s32")
+                    return "d";
+
+               if (type_name == "u64")
+                    return "llu";
+
+               if (type_name == "s64")
+                    return "lld";
+
+               if (type_name == "void*")
+                    return "p";
+
+               D_WARN( "unrecognized integer type '%s'", type_name.c_str() );
+
+               return "lu";
+          }
+
+          if (type == "enum")
+               return "x";
+
+          D_WARN( "unsupported type '%s'", type.c_str() );
+
+          D_UNIMPLEMENTED();
+
+          return "x";
      }
 
      std::string size( bool use_args ) const
@@ -1329,6 +1376,50 @@ Method::ArgumentsInputObjectLookup( const FluxConfig &config ) const
 }
 
 std::string
+Method::ArgumentsInputDebug( const FluxConfig &config,
+                             const Interface  *face ) const
+{
+     std::string result;
+
+     for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
+          const Arg *arg = dynamic_cast<const Arg*>( *iter );
+
+          if (arg->array)
+               continue;
+
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+
+          if (arg->direction == "input" || arg->direction == "inout") {
+               if (arg->optional)
+                    result += std::string("  if (") + arg->name + ")\n";
+
+               if (arg->type == "struct")
+                    result += std::string("    // TODO: ") + arg->type_name + "_debug args->" + arg->name + ";\n";
+               else if (arg->type == "object") {
+                    char buf[1000];
+
+                    snprintf( buf, sizeof(buf),
+                              "            D_DEBUG_AT( DirectFB_%s, \"  -> %s = %%d\\n\", args->%s_id );\n",
+                              face->object.c_str(), arg->name.c_str(), arg->name.c_str() );
+
+                    result += buf;
+               }
+               else if (arg->type == "enum" || arg->type == "int") {
+                    char buf[1000];
+
+                    snprintf( buf, sizeof(buf),
+                              "            D_DEBUG_AT( DirectFB_%s, \"  -> %s = %%%s\\n\", args->%s );\n",
+                              face->object.c_str(), arg->name.c_str(), arg->formatCharacter().c_str(), arg->name.c_str() );
+
+                    result += buf;
+               }
+          }
+     }
+
+     return result;
+}
+
+std::string
 Method::ArgumentsInputObjectUnref() const
 {
      std::string result;
@@ -2024,11 +2115,14 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "\n"
                               "            D_DEBUG_AT( DirectFB_%s, \"=-> %s_%s\\n\" );\n"
                               "\n"
+                              "%s"
+                              "\n"
                               "%s",
                         method->ArgumentsInputObjectDecl().c_str(),
                         method->ArgumentsOutputObjectDecl().c_str(),
                         face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
+                        method->ArgumentsInputDebug( config, face ).c_str(),
                         method->ArgumentsInputObjectLookup( config ).c_str() );
 
                if (!config.c_mode)
@@ -2108,7 +2202,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                     "{\n"
                     "    DFBResult ret;\n"
                     "\n"
-                    "    D_DEBUG_AT( DirectFB_%s, \"%sDispatch::%%s()\\n\", __FUNCTION__ );\n",
+                    "    D_DEBUG_AT( DirectFB_%s, \"%sDispatch::%%s( %%p )\\n\", __FUNCTION__, obj );\n",
               face->object.c_str(), face->dispatch.c_str(),
               face->object.c_str(), face->object.c_str());
 
