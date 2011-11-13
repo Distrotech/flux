@@ -307,7 +307,8 @@ public:
      Method()
           :
           Entity(),
-          async( false )
+          async( false ),
+          queue( false )
      {
      }
 
@@ -322,6 +323,7 @@ public:
 
      std::string              name;
      bool                     async;
+     bool                     queue;
 
 
 public:
@@ -611,6 +613,11 @@ Method::SetProperty( const std::string &name,
 
      if (name == "async") {
           async = value == "yes";
+          return;
+     }
+
+     if (name == "queue") {
+          queue = value == "yes";
           return;
      }
 }
@@ -2005,7 +2012,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "\n"
                               "%s"
                               "\n"
-                              "    ret = (DFBResult) %s_Call( obj, FCEF_ONEWAY, %s%s_%s, args, %s, NULL, 0, NULL );\n"
+                              "    ret = (DFBResult) %s_Call( obj, (FusionCallExecFlags)(FCEF_ONEWAY%s), %s%s_%s, args, %s, NULL, 0, NULL );\n"
                               "    if (ret) {\n"
                               "        D_DERROR( ret, \"%%s: %s_Call( %s_%s ) failed!\\n\", __FUNCTION__ );\n"
                               "        return ret;\n"
@@ -2022,7 +2029,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                         face->object.c_str(), face->name.c_str(),
                         method->ArgumentsAssertions().c_str(),
                         method->ArgumentsInputAssignments().c_str(),
-                        face->object.c_str(), config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(),
+                        face->object.c_str(), method->queue ? " | FCEF_QUEUE" : "", config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
                         method->ArgumentsOutputAssignments().c_str(),
                         method->ArgumentsOutputObjectCatch( config ).c_str() );
