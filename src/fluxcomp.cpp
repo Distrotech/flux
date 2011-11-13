@@ -1391,10 +1391,10 @@ Method::ArgumentsInputDebug( const FluxConfig &config,
 
           if (arg->direction == "input" || arg->direction == "inout") {
                if (arg->optional)
-                    result += std::string("  if (") + arg->name + ")\n";
+                    result += std::string("  if (args->") + arg->name + "_set)\n";
 
                if (arg->type == "struct")
-                    result += std::string("    // TODO: ") + arg->type_name + "_debug args->" + arg->name + ";\n";
+                    result += std::string("         ;    // TODO: ") + arg->type_name + "_debug args->" + arg->name + ";\n";
                else if (arg->type == "object") {
                     char buf[1000];
 
@@ -1413,6 +1413,8 @@ Method::ArgumentsInputDebug( const FluxConfig &config,
 
                     result += buf;
                }
+               else
+                    result += std::string("         ;    // TODO: ") + arg->type + " debug\n";
           }
      }
 
