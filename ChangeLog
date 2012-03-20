@@ -1,3 +1,111 @@
+commit 6e369b8690574d473b2b5a6db92cadc3041d7918
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Tue Mar 20 14:39:06 2012 +0100
+
+    fluxcomp: increase version to 1.2.0
+
+commit c0a5e9a3d9f2858ad9579c315bc49312e2e39bcd
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun Nov 13 13:33:01 2011 +0100
+
+    Flux: Add property "queue" to methods, used with "async" it makes usage of FCEF_QUEUE.
+
+commit 4b0dc49ac6717c0fce0b07eece53b414d88ca33a
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun Nov 13 10:41:45 2011 +0100
+
+    flux: Fix generated debug code for optional arguments.
+
+commit 860bd89b68a25de603fa4e8439018799404b2521
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun Oct 23 02:46:56 2011 +0200
+
+    Flux: Don't print errors in requestor functions that are not on flux/fusion layer.
+
+commit 800e0e8475e6bcbd765fdcdbfb7314844cc1a22a
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun Oct 23 02:39:49 2011 +0200
+
+    Flux: Add simple input argument logging code generation.
+
+commit ed1df2d3a6c7bb523fb941f929ee3bd054bf075d
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Oct 22 23:09:02 2011 +0200
+
+    Flux: Allow usage of input argument for 'count' of an output argument.
+
+commit a9ce29b2b2e6a858c3a8998bb1d1482021c6c548
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Oct 22 16:20:38 2011 +0200
+
+    Flux: Don't add direct shortcut calls when dispatch is different from object type.
+
+commit 3211a95544091244ce9866284d066fba1924c1a3
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Oct 12 19:54:10 2011 +0200
+
+    Flux: Option --no-direct to drop shortcuts, 'dispatch' object property for interfaces
+    
+    With 'object' the local and remote object is defined, e.g. CoreWindow,
+    but for non-shared objects, the 'dispatch' property changes the object
+    on dispatcher side.
+
+commit edb991c0f6840e6b025e49925bbcf4e62a76c52f
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Oct 8 23:02:38 2011 +0200
+
+    Flux: Fix Method::ArgumentsOutputObjectCatch() as well
+
+commit d6d502ed59cfbc2df855339b6122effc9a61e70e
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Oct 8 22:02:47 2011 +0200
+
+    Flux: Fix Method::ArgumentsSizeReturn() from previous commit.
+
+commit c8d6c78553e9ad70d1b0764fcff5e0970a6020ba
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Oct 8 21:18:28 2011 +0200
+
+    Flux: Implement variable length array output args with new 'max' specifier.
+
+commit d7b4d522546f5675f568dd011122e727febc82aa
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Mon Sep 26 18:17:25 2011 +0200
+
+    change version to 1.1.0
+
+commit 66ae11e60bd1ae2ad75204e5e1a76a78ebf6a3b8
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Sep 24 13:04:04 2011 +0200
+
+    Flux: Add Core_Push/PopIdentity() calls when parameter "-i" is used.
+    
+    Move options and parsing into new FluxConfig object.
+
+commit eaa11776b07720d665f8d54c9eb1f6ba834c759c
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Thu Sep 22 16:56:51 2011 +0200
+
+    flux: build with libdirect if available
+
+commit 9b73c276557eeff2ec7182fdd3e970cee6255a5a
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Thu Sep 22 15:51:30 2011 +0200
+
+    flux: add changelog
+
+commit 6588579c368b85a91032ea3dcef7712f0632686e
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Thu Sep 22 15:46:00 2011 +0200
+
+    flux: add autofoo stuff
+
+commit 8c97bdb4020539c90e632c1cf07a8005d5aeeb5f
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Thu Sep 22 15:45:48 2011 +0200
+
+    flux: make libdirect optional
+
 commit c61d2180ea469aa2c6d14c39277b9b10d777c03f
 Author: Andreas Shimokawa <andi@directfb.org>
 Date:   Thu Sep 22 15:17:26 2011 +0200
