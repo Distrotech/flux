@@ -144,13 +144,15 @@ public:
      bool           identity;
      std::string    include_prefix;
      bool           no_direct;
+     bool           call_mode;
 
 public:
      FluxConfig()
           :
           c_mode( false ),
           identity( false ),
-          no_direct( false )
+          no_direct( false ),
+          call_mode( false )
      {
      }
 
@@ -186,7 +188,10 @@ public:
                     no_direct = true;
                     continue;
                }
-
+               if (strcmp (arg, "--call-mode") == 0) {
+                    call_mode = true;
+                    continue;
+               }
                if (strncmp (arg, "-p=",3) == 0) {
                     include_prefix = std::string(&arg[3]);
                     continue;
@@ -1845,6 +1850,10 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                     "\n"
                     "#include <core/core.h>\n" );
 
+     if (config.call_mode)
+          fprintf( file, "\n"
+                         "#include <core/CoreDFB_CallMode.h>\n" );
+
      if (!config.c_mode)
           fprintf( file, "}\n" );
 
@@ -1871,24 +1880,53 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                         face->object.c_str(), method->entities.empty() ? "" : ",",
                         method->ArgumentsAsParamDecl().c_str() );
 
-               if (direct) {
-                    fprintf( file, "    if (!fusion_config->secure_fusion || dfb_core_is_master( core_dfb )) {\n"
-                                   "        DirectFB::%s_Real real( core_dfb, obj );\n"
-                                   "\n"
-                                   "        return real.%s( %s );\n"
-                                   "    }\n"
-                                   "\n",
+               if (config.call_mode) {
+                    fprintf( file,      "    switch (CoreDFB_CallMode( core_dfb )) {\n"
+                                        "        case COREDFB_CALL_DIRECT:" );
+                    if (direct)
+                         fprintf( file, "{\n"
+                                        "            DirectFB::%s_Real real( core_dfb, obj );\n"
+                                        "\n"
+                                        "            return real.%s( %s );\n"
+                                        "        }\n",
+                             face->name.c_str(),
+                             method->name.c_str(), method->ArgumentsNames().c_str() );
+
+                    fprintf( file,      "        case COREDFB_CALL_INDIRECT: {\n"
+                                        "            DirectFB::%s_Requestor requestor( core_dfb, obj );\n"
+                                        "\n"
+                                        "            return requestor.%s( %s );\n"
+                                        "        }\n"
+                                        "        case COREDFB_CALL_DENY:\n"
+                                        "            return DFB_DEAD;\n"
+                                        "    }\n"
+                                        "\n"
+                                        "    return DFB_UNIMPLEMENTED;\n"
+                                        "}\n"
+                                        "\n",
                              face->name.c_str(),
                              method->name.c_str(), method->ArgumentsNames().c_str() );
                }
+               else {
+                    if (direct)
+                         fprintf( file, "    if (!fusion_config->secure_fusion || dfb_core_is_master( core_dfb )) {\n"
+                                        "        DirectFB::%s_Real real( core_dfb, obj );\n"
+                                        "\n"
+                                        "        return real.%s( %s );\n"
+                                        "    }\n"
+                                        "\n",
+                                  face->name.c_str(),
+                                  method->name.c_str(), method->ArgumentsNames().c_str() );
 
-               fprintf( file, "    DirectFB::%s_Requestor requestor( core_dfb, obj );\n"
-                              "\n"
-                              "    return requestor.%s( %s );\n"
-                              "}\n"
-                              "\n",
-                        face->name.c_str(),
-                        method->name.c_str(), method->ArgumentsNames().c_str() );
+                    fprintf( file,      "    DirectFB::%s_Requestor requestor( core_dfb, obj );\n"
+                                        "\n"
+                                        "    return requestor.%s( %s );\n"
+                                        "}\n"
+                                        "\n",
+                             face->name.c_str(),
+                             method->name.c_str(), method->ArgumentsNames().c_str() );
+
+               }
           }
           else {
                fprintf( file, "DFBResult\n"
@@ -1901,20 +1939,38 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                         face->object.c_str(), method->entities.empty() ? "" : ",",
                         method->ArgumentsAsParamDecl().c_str() );
 
-               if (direct) {
-                    fprintf( file, "    if (!fusion_config->secure_fusion || dfb_core_is_master( core_dfb )) {\n"
-                                   "        return %s_Real__%s( obj%s%s );\n"
-                                   "    }\n"
-                                   "\n",
+               if (config.call_mode) {
+                    fprintf( file,      "    switch (CoreDFB_CallMode( core_dfb )) {\n"
+                                        "        case COREDFB_CALL_DIRECT:\n" );
+                    if (direct)
+                         fprintf( file, "            return %s_Real__%s( obj%s%s );\n",
+                                  face->name.c_str(), method->name.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ", ", method->ArgumentsNames().c_str() );
+
+                    fprintf( file,      "        case COREDFB_CALL_INDIRECT:\n"
+                                        "            return %s_Requestor__%s( obj%s%s );\n"
+                                        "        case COREDFB_CALL_DENY:\n"
+                                        "            return DFB_DEAD;\n"
+                                        "    }\n"
+                                        "\n"
+                                        "    return DFB_UNIMPLEMENTED;\n"
+                                        "}\n"
+                                        "\n",
                              face->name.c_str(), method->name.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ", ", method->ArgumentsNames().c_str() );
                }
+               else {
+                    if (direct)
+                         fprintf( file, "    if (!fusion_config->secure_fusion || dfb_core_is_master( core_dfb )) {\n"
+                                        "        return %s_Real__%s( obj%s%s );\n"
+                                        "    }\n"
+                                        "\n",
+                                  face->name.c_str(), method->name.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ", ", method->ArgumentsNames().c_str() );
 
-               fprintf( file, "    return %s_Requestor__%s( obj%s%s );\n"
-                              "}\n"
-                              "\n",
-                        face->name.c_str(), method->name.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ", ", method->ArgumentsNames().c_str() );
+                    fprintf( file,      "    return %s_Requestor__%s( obj%s%s );\n"
+                                        "}\n"
+                                        "\n",
+                             face->name.c_str(), method->name.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ", ", method->ArgumentsNames().c_str() );
+               }
           }
-
      }
 
 
