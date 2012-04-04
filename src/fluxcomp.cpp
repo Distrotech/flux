@@ -1881,21 +1881,31 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                         method->ArgumentsAsParamDecl().c_str() );
 
                if (config.call_mode) {
-                    fprintf( file,      "    switch (CoreDFB_CallMode( core_dfb )) {\n"
+                    fprintf( file,      "    DFBResult ret;\n"
+                                        "\n"
+                                        "    switch (CoreDFB_CallMode( core_dfb )) {\n"
                                         "        case COREDFB_CALL_DIRECT:" );
                     if (direct)
                          fprintf( file, "{\n"
                                         "            DirectFB::%s_Real real( core_dfb, obj );\n"
                                         "\n"
-                                        "            return real.%s( %s );\n"
-                                        "        }\n",
+                                        "            Core_PushCalling();\n"
+                                        "            ret = real.%s( %s );\n"
+                                        "            Core_PopCalling();\n"                                  
+                                        "\n"
+                                        "            return ret;\n"
+                                        "        }",
                              face->name.c_str(),
                              method->name.c_str(), method->ArgumentsNames().c_str() );
 
-                    fprintf( file,      "        case COREDFB_CALL_INDIRECT: {\n"
+                    fprintf( file,      "\n        case COREDFB_CALL_INDIRECT: {\n"
                                         "            DirectFB::%s_Requestor requestor( core_dfb, obj );\n"
                                         "\n"
-                                        "            return requestor.%s( %s );\n"
+                                        "            Core_PushCalling();\n"
+                                        "            ret = requestor.%s( %s );\n"
+                                        "            Core_PopCalling();\n"                                  
+                                        "\n"
+                                        "            return ret;\n"
                                         "        }\n"
                                         "        case COREDFB_CALL_DENY:\n"
                                         "            return DFB_DEAD;\n"
@@ -1940,14 +1950,27 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                         method->ArgumentsAsParamDecl().c_str() );
 
                if (config.call_mode) {
-                    fprintf( file,      "    switch (CoreDFB_CallMode( core_dfb )) {\n"
-                                        "        case COREDFB_CALL_DIRECT:\n" );
+                    fprintf( file,      "    DFBResult ret;\n"
+                                        "\n"                                        
+                                        "    switch (CoreDFB_CallMode( core_dfb )) {\n"
+                                        "        case COREDFB_CALL_DIRECT:" );
                     if (direct)
-                         fprintf( file, "            return %s_Real__%s( obj%s%s );\n",
+                         fprintf( file, "{\n"
+                                        "            Core_PushCalling();\n"
+                                        "            ret = %s_Real__%s( obj%s%s );\n"
+                                        "            Core_PopCalling();\n"
+                                        "\n"
+                                        "            return ret\n"
+                                        "        }\n"
                                   face->name.c_str(), method->name.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ", ", method->ArgumentsNames().c_str() );
 
-                    fprintf( file,      "        case COREDFB_CALL_INDIRECT:\n"
-                                        "            return %s_Requestor__%s( obj%s%s );\n"
+                    fprintf( file,      "\n        case COREDFB_CALL_INDIRECT: {\n"
+                                        "            Core_PushCalling();\n"
+                                        "            ret = %s_Requestor__%s( obj%s%s );\n"
+                                        "            Core_PopCalling();\n"
+                                        "\n"
+                                        "            return ret;\n"
+                                        "        }\n"
                                         "        case COREDFB_CALL_DENY:\n"
                                         "            return DFB_DEAD;\n"
                                         "    }\n"
