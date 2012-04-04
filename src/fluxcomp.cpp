@@ -1961,7 +1961,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                                         "            Core_PopCalling();\n"
                                         "\n"
                                         "            return ret\n"
-                                        "        }\n"
+                                        "        }\n",
                                   face->name.c_str(), method->name.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ", ", method->ArgumentsNames().c_str() );
 
                     fprintf( file,      "\n        case COREDFB_CALL_INDIRECT: {\n"
