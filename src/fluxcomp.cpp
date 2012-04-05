@@ -1960,7 +1960,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                                         "            ret = %s_Real__%s( obj%s%s );\n"
                                         "            Core_PopCalling();\n"
                                         "\n"
-                                        "            return ret\n"
+                                        "            return ret;\n"
                                         "        }\n",
                                   face->name.c_str(), method->name.c_str(), method->ArgumentsAsParamDecl().empty() ? "" : ", ", method->ArgumentsNames().c_str() );
 
