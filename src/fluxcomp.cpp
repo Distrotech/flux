@@ -1178,8 +1178,12 @@ Method::ArgumentsOutputAssignments() const
           FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
 
           if (arg->direction == "output" || arg->direction == "inout") {
-               if (arg->type == "struct" || arg->type == "enum" || arg->type == "int")
-                    result += std::string("    *") + arg->param_name() + " = return_args->" + arg->name + ";\n";
+               if (arg->type == "struct" || arg->type == "enum" || arg->type == "int") {
+                    if (arg->optional)
+                         result += std::string("    if (") + arg->param_name() + ")\n";
+
+                    result += std::string( arg->optional ? "        *" : "    *") + arg->param_name() + " = return_args->" + arg->name + ";\n";
+               }
           }
      }
 
