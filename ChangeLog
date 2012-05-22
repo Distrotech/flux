@@ -1,3 +1,55 @@
+commit 38e47f9e4be7ae2bcf368921c9c5d453f6f087d4
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Tue May 22 18:16:25 2012 +0200
+
+    flux: increase version to 1.3.0
+
+commit 2298fa4698b81f58b1f180840a1091b63bfbe932
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Tue May 22 15:50:34 2012 +0200
+
+    fluxcomp: add option -V / --version-code to output a version code to stdout
+    
+    version code is MAJOR*1000000+MINOR*1000+MICRO
+
+commit bf4e2ea9b536b68f65e48c22728048627905793d
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Mon May 21 16:10:02 2012 +0200
+
+    fluxcomp: support optional output parameters
+
+commit e5e84a89e5a981c981ea96778b68492d2ae0dd03
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Apr 5 12:48:35 2012 +0200
+
+    flux: fix missing semicolon
+
+commit de1fd95b8588e38979da0cbef4f5ad9acf07efdc
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Wed Apr 4 14:57:06 2012 +0200
+
+    fluxcomp: compile fix
+
+commit 01b96ee4bbbe0ca404e2848e3942cfde6313d247
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Wed Apr 4 14:56:23 2012 +0200
+
+    generate Core_PopCalling() and Core_PushCalling() calls
+
+commit e795734fb28a707a21fdca85bb8c9a52c6ee1f0a
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Tue Apr 3 14:04:24 2012 +0200
+
+    fluxcomp: prepare for DirectFB-1.6 and DirectFB 1.4.17
+    
+    The generated code now uses CoreDFB_CallMode() to determinate if calls should be direct, indirect or denied
+
+commit 01cd3b0f3d8ec1cf16fdd9e3cc35e535044c4c11
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Tue Mar 20 15:51:37 2012 +0100
+
+    update ChangeLog
+
 commit 6e369b8690574d473b2b5a6db92cadc3041d7918
 Author: Andreas Shimokawa <andi@directfb.org>
 Date:   Tue Mar 20 14:39:06 2012 +0100
