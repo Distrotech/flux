@@ -174,6 +174,11 @@ public:
                     return false;
                }
 
+               if (strcmp (arg, "-V") == 0 || strcmp (arg, "--version-code") == 0) {
+                    fprintf( stdout, "%d", FLUXCOMP_MAJOR_VERSION*1000000 + FLUXCOMP_MINOR_VERSION*1000 + FLUXCOMP_MICRO_VERSION );
+                    return false;
+               }
+
                if (strcmp (arg, "-c") == 0 || strcmp (arg, "--generate-c") == 0) {
                     c_mode = true;
                     continue;
@@ -225,6 +230,7 @@ public:
           fprintf( stderr, "Options:\n" );
           fprintf( stderr, "   -h, --help                     Show this help message\n" );
           fprintf( stderr, "   -v, --version                  Print version information\n" );
+          fprintf( stderr, "   -V, --version-code             Output version code to stdout\n" );
           fprintf( stderr, "\n" );
      }
 };
