@@ -145,6 +145,7 @@ public:
      std::string    include_prefix;
      bool           no_direct;
      bool           call_mode;
+     bool           object_ptrs;
 
 public:
      FluxConfig()
@@ -152,7 +153,8 @@ public:
           c_mode( false ),
           identity( false ),
           no_direct( false ),
-          call_mode( false )
+          call_mode( false ),
+          object_ptrs( false )
      {
      }
 
@@ -186,6 +188,11 @@ public:
 
                if (strcmp (arg, "-i") == 0 || strcmp (arg, "--identity") == 0) {
                     identity = true;
+                    continue;
+               }
+
+               if (strcmp (arg, "--object-ptrs") == 0) {
+                    object_ptrs = true;
                     continue;
                }
 
@@ -367,7 +374,7 @@ public:
 
      std::string ArgumentsAsParamDecl() const;
      std::string ArgumentsAsMemberDecl() const;
-     std::string ArgumentsOutputAsMemberDecl() const;
+     std::string ArgumentsOutputAsMemberDecl( const FluxConfig &config ) const;
      std::string ArgumentsAsMemberParams() const;
 
      std::string ArgumentsInputAssignments() const;
@@ -379,7 +386,7 @@ public:
      std::string ArgumentsInputObjectDecl() const;
 
      std::string ArgumentsOutputObjectCatch( const FluxConfig &config ) const;
-     std::string ArgumentsOutputObjectThrow() const;
+     std::string ArgumentsOutputObjectThrow( const FluxConfig &config ) const;
      std::string ArgumentsInoutReturn() const;
 
      std::string ArgumentsInputObjectLookup( const FluxConfig &config ) const;
@@ -991,7 +998,7 @@ Method::ArgumentsAsMemberDecl() const
 }
 
 std::string
-Method::ArgumentsOutputAsMemberDecl() const
+Method::ArgumentsOutputAsMemberDecl( const FluxConfig &config ) const
 {
      std::string result;
 
@@ -1012,8 +1019,12 @@ Method::ArgumentsOutputAsMemberDecl() const
                     result = PrintMember( result, arg->type_name, "", arg->name );
                else if (arg->type == "int")
                     result = PrintMember( result, arg->type_name, "", arg->name );
-               else if (arg->type == "object")
+               else if (arg->type == "object") {
                     result = PrintMember( result, "u32", "", arg->name + "_id" );
+
+                    if (config.object_ptrs)
+                         result = PrintMember( result, "void*", "", arg->name + "_ptr" );
+               }
           }
      }
 
@@ -1280,7 +1291,7 @@ Method::ArgumentsOutputObjectCatch( const FluxConfig &config ) const
                char buf[1000];
 
                snprintf( buf, sizeof(buf),
-                         "    ret = (DFBResult) %s_Catch( %s, return_args->%s_id, &%s );\n"
+                         "    ret = (DFBResult) %s_Catch( %s, return_args->%s%s, &%s );\n"
                          "    if (ret) {\n"
                          "         D_DERROR( ret, \"%%s: Catching %s by ID %%u failed!\\n\", __FUNCTION__, return_args->%s_id );\n"
                          "         return ret;\n"
@@ -1288,7 +1299,7 @@ Method::ArgumentsOutputObjectCatch( const FluxConfig &config ) const
                          "\n"
                          "    *%s = %s;\n"
                          "\n",
-                         arg->type_name.c_str(), config.c_mode ? "core_dfb" : "core", arg->name.c_str(), arg->name.c_str(),
+                         arg->type_name.c_str(), config.c_mode ? "core_dfb" : "core", arg->name.c_str(), config.object_ptrs ? "_ptr" : "_id", arg->name.c_str(),
                          arg->name.c_str(), arg->name.c_str(),
                          arg->param_name().c_str(), arg->name.c_str() );
 
@@ -1300,7 +1311,7 @@ Method::ArgumentsOutputObjectCatch( const FluxConfig &config ) const
 }
 
 std::string
-Method::ArgumentsOutputObjectThrow() const
+Method::ArgumentsOutputObjectThrow( const FluxConfig &config ) const
 {
      std::string result;
 
@@ -1317,6 +1328,14 @@ Method::ArgumentsOutputObjectThrow() const
                          arg->type_name.c_str(), arg->name.c_str(), arg->name.c_str() );
 
                result += buf;
+
+               if (config.object_ptrs) {
+                    snprintf( buf, sizeof(buf),
+                              "                return_args->%s_ptr = (void*) %s;\n",
+                              arg->name.c_str(), arg->name.c_str() );
+
+                    result += buf;
+               }
           }
      }
 
@@ -1685,7 +1704,7 @@ FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
                    face->object.c_str(), method->name.c_str(),
                    method->ArgumentsAsMemberDecl().c_str(),
                    face->object.c_str(), method->name.c_str(),
-                   method->ArgumentsOutputAsMemberDecl().c_str(),
+                   method->ArgumentsOutputAsMemberDecl( config ).c_str(),
                    face->object.c_str(), method->name.c_str() );
      }
 
@@ -2273,7 +2292,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "            return DFB_OK;\n"
                               "        }\n"
                               "\n",
-                        method->ArgumentsOutputObjectThrow().c_str(),
+                        method->ArgumentsOutputObjectThrow( config ).c_str(),
                         method->ArgumentsInoutReturn().c_str(),
                         method->ArgumentsSizeReturn( face ).c_str(),
                         method->ArgumentsInputObjectUnref().c_str() );
