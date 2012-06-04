@@ -537,9 +537,14 @@ public:
                if (arg == this)
                     break;
 
-               if ((output && arg->direction == "output") ||
-                   (!output && arg->direction == "input") || arg->direction == "inout")
-                    result += std::string(" + ") + arg->size( use_args );
+               if (output) {
+                    if (arg->direction == "output" || arg->direction == "inout")
+                         result += std::string(" + return_args->") + arg->size( false );
+               }
+               else {
+                    if (arg->direction == "input")
+                         result += std::string(" + ") + arg->size( use_args );
+               }
           }
 
           return result;
