@@ -383,11 +383,13 @@ public:
      std::string ArgumentsAssertions() const;
 
      std::string ArgumentsOutputObjectDecl() const;
+     std::string ArgumentsOutputTmpDecl() const;
      std::string ArgumentsInputObjectDecl() const;
 
      std::string ArgumentsOutputObjectCatch( const FluxConfig &config ) const;
      std::string ArgumentsOutputObjectThrow( const FluxConfig &config ) const;
      std::string ArgumentsInoutReturn() const;
+     std::string ArgumentsOutputTmpReturn() const;
 
      std::string ArgumentsInputObjectLookup( const FluxConfig &config ) const;
      std::string ArgumentsInputObjectUnref() const;
@@ -1060,6 +1062,7 @@ Method::ArgumentsAsMemberParams() const
 {
      std::string result;
      bool        first = true;
+     bool        second_output_array = false;
 
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
@@ -1101,10 +1104,17 @@ Method::ArgumentsAsMemberParams() const
                     D_UNIMPLEMENTED();
 
                if (arg->array) {
-                    if (arg->type == "struct" || arg->type == "enum" || arg->type == "int")
-                         result += std::string("(") + arg->type_name + "*) ((char*)(return_args + 1)" + arg->offset( this, true, true ) + ")";
-                    else if (arg->type == "object")
-                         D_UNIMPLEMENTED();
+                    if (second_output_array) {
+                         result += "tmp_" + arg->name;
+                    }
+                    else {
+                         if (arg->type == "struct" || arg->type == "enum" || arg->type == "int")
+                              result += std::string("(") + arg->type_name + "*) ((char*)(return_args + 1)" + arg->offset( this, true, true ) + ")";
+                         else if (arg->type == "object")
+                              D_UNIMPLEMENTED();
+
+                         second_output_array = true;
+                    }
                }
                else {
                     if (arg->type == "struct")
@@ -1266,6 +1276,28 @@ Method::ArgumentsOutputObjectDecl() const
 }
 
 std::string
+Method::ArgumentsOutputTmpDecl() const
+{
+     std::string result;
+     bool        second = false;
+
+     for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
+          const Arg *arg = dynamic_cast<const Arg*>( *iter );
+
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+
+          if (arg->direction == "output" && arg->array) {
+               if (second)
+                    result += std::string("    ") + arg->type_name + "  tmp_" + arg->name + "[" + arg->max + "];\n";
+               else
+                    second = true;
+          }
+     }
+
+     return result;
+}
+
+std::string
 Method::ArgumentsInputObjectDecl() const
 {
      std::string result;
@@ -1365,6 +1397,36 @@ Method::ArgumentsInoutReturn() const
                          arg->name.c_str(), arg->name.c_str() );
 
                result += buf;
+          }
+     }
+
+     return result;
+}
+
+std::string
+Method::ArgumentsOutputTmpReturn() const
+{
+     std::string result;
+     bool        second_output_array = false;
+
+     for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
+          const Arg *arg = dynamic_cast<const Arg*>( *iter );
+
+          FLUX_D_DEBUG_AT( fluxcomp, "%s( %p )\n", __FUNCTION__, arg );
+
+          if (arg->direction == "output" && arg->array) {
+               if (second_output_array) {
+                    char        buf[1000];
+                    std::string dst = std::string("(char*) ((char*)(return_args + 1)") + arg->offset( this, true, true ) + ")";
+
+                    snprintf( buf, sizeof(buf),
+                              "                direct_memcpy( %s, tmp_%s, return_args->%s_size );\n",
+                              dst.c_str(), arg->name.c_str(), arg->name.c_str() );
+
+                    result += buf;
+               }
+               else
+                    second_output_array = true;
           }
      }
 
@@ -2264,6 +2326,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
           else {
                fprintf( file, "%s"
                               "%s"
+                              "%s"
                               "            D_UNUSED\n"
                               "            %s%s       *args        = (%s%s *) ptr;\n"
                               "            %s%sReturn *return_args = (%s%sReturn *) ret_ptr;\n"
@@ -2273,6 +2336,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "%s",
                         method->ArgumentsInputObjectDecl().c_str(),
                         method->ArgumentsOutputObjectDecl().c_str(),
+                        method->ArgumentsOutputTmpDecl().c_str(),
                         face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(),
                         face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
@@ -2289,6 +2353,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                fprintf( file, "            if (return_args->result == DFB_OK) {\n"
                               "%s"
                               "%s"
+                              "%s"
                               "            }\n"
                               "\n"
                               "            *ret_length = %s;\n"
@@ -2299,6 +2364,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "\n",
                         method->ArgumentsOutputObjectThrow( config ).c_str(),
                         method->ArgumentsInoutReturn().c_str(),
+                        method->ArgumentsOutputTmpReturn().c_str(),
                         method->ArgumentsSizeReturn( face ).c_str(),
                         method->ArgumentsInputObjectUnref().c_str() );
           }
