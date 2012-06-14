@@ -1,3 +1,37 @@
+commit 5c2dd79d43ad6027a870b358869d4dc519e76f34
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Jun 6 23:30:52 2012 +0200
+
+    version: 1.4.1
+
+commit 16d588254e54b457843a6fba5064784ec0548acb
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Jun 6 23:29:20 2012 +0200
+
+    flux: Handle multiple variable length output arrays properly.
+
+commit 96abe92e94b658b081afa8747a006ba681e7a599
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jun 4 22:10:15 2012 +0200
+
+    Flux: Fix multiple output array code.
+
+commit 2e427e334cdf8efbd8b32bc3b74606e5ad42b287
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed May 23 22:57:14 2012 +0200
+
+    fluxcomp: Add --object-ptrs option to add object pointers used to return objects.
+    
+    In addition to the object id, the master directly returns the shared memory address
+    of the object. That way the slave does not need to lookup the object in the pool and
+    we can convert all object pool skirmishs to mutexes!
+
+commit 8d59f18314b65422c2e28b1031d160994ad70ca6
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Tue May 22 18:17:19 2012 +0200
+
+    update changelog
+
 commit 38e47f9e4be7ae2bcf368921c9c5d453f6f087d4
 Author: Andreas Shimokawa <andi@directfb.org>
 Date:   Tue May 22 18:16:25 2012 +0200
