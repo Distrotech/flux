@@ -146,6 +146,7 @@ public:
      bool           no_direct;
      bool           call_mode;
      bool           object_ptrs;
+     size_t         static_args_bytes;
 
 public:
      FluxConfig()
@@ -154,7 +155,8 @@ public:
           identity( false ),
           no_direct( false ),
           call_mode( false ),
-          object_ptrs( false )
+          object_ptrs( false ),
+          static_args_bytes( 1000 )
      {
      }
 
@@ -210,6 +212,12 @@ public:
                }
                if (strncmp (arg, "--include-prefix=", 17) == 0) {
                     include_prefix = std::string(&arg[17]);
+                    continue;
+               }
+               if (strncmp (arg, "--static-args-bytes=", 20) == 0) {
+                    static_args_bytes = atoi( &arg[20] );
+                    if (static_args_bytes < 1)
+                         static_args_bytes = 1;
                     continue;
                }
 
@@ -1331,7 +1339,7 @@ Method::ArgumentsOutputObjectCatch( const FluxConfig &config ) const
                          "    ret = (DFBResult) %s_Catch( %s, return_args->%s%s, &%s );\n"
                          "    if (ret) {\n"
                          "         D_DERROR( ret, \"%%s: Catching %s by ID %%u failed!\\n\", __FUNCTION__, return_args->%s_id );\n"
-                         "         return ret;\n"
+                         "         goto out;\n"
                          "    }\n"
                          "\n"
                          "    *%s = %s;\n"
@@ -2151,6 +2159,27 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
      }
 
      /* Requestor Methods */
+     fprintf( file, "static __inline__ void *args_alloc( void *static_buffer, size_t size )\n"
+                    "{\n"
+                    "    void *buffer = static_buffer;\n"
+                    "\n"
+                    "    if (size > %zu) {\n"
+                    "        buffer = direct_malloc( size );\n"
+                    "        if (!buffer)\n"
+                    "            return NULL;\n"
+                    "    }\n"
+                    "\n"
+                    "    return buffer;\n"
+                    "}\n"
+                    "\n",
+              config.static_args_bytes );
+
+     fprintf( file, "static __inline__ void args_free( void *static_buffer, void *buffer )\n"
+                    "{\n"
+                    "    if (buffer != static_buffer)\n"
+                    "        direct_free( buffer );\n"
+                    "}\n"
+                    "\n" );
 
      for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
           const Method *method = dynamic_cast<const Method*>( *iter );
@@ -2177,9 +2206,13 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
 
           if (method->async) {
                fprintf( file, "{\n"
-                              "    DFBResult           ret;\n"
+                              "    DFBResult           ret = DFB_OK;\n"
                               "%s"
-                              "    %s%s       *args = (%s%s*) alloca( %s );\n"
+                              "    char        args_static[%zu];\n"
+                              "    %s%s       *args = (%s%s*) args_alloc( args_static, %s );\n"
+                              "\n"
+                              "    if (!args)\n"
+                              "        return (DFBResult) D_OOM();\n"
                               "\n"
                               "    D_DEBUG_AT( DirectFB_%s, \"%s_Requestor::%%s()\\n\", __FUNCTION__ );\n"
                               "\n"
@@ -2190,16 +2223,19 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "    ret = (DFBResult) %s_Call( obj, (FusionCallExecFlags)(FCEF_ONEWAY%s), %s%s_%s, args, %s, NULL, 0, NULL );\n"
                               "    if (ret) {\n"
                               "        D_DERROR( ret, \"%%s: %s_Call( %s_%s ) failed!\\n\", __FUNCTION__ );\n"
-                              "        return ret;\n"
+                              "        goto out;\n"
                               "    }\n"
                               "\n"
                               "%s"
                               "\n"
                               "%s"
+                              "out:\n"
+                              "    args_free( args_static, args );\n"
                               "    return DFB_OK;\n"
                               "}\n"
                               "\n",
                         method->ArgumentsOutputObjectDecl().c_str(),
+                        config.static_args_bytes,
                         face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(),
                         face->object.c_str(), face->name.c_str(),
                         method->ArgumentsAssertions().c_str(),
@@ -2211,10 +2247,20 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
           }
           else {
                fprintf( file, "{\n"
-                              "    DFBResult           ret;\n"
+                              "    DFBResult           ret = DFB_OK;\n"
                               "%s"
-                              "    %s%s       *args = (%s%s*) alloca( %s );\n"
-                              "    %s%sReturn *return_args = (%s%sReturn*) alloca( %s );\n"
+                              "    char        args_static[%zu];\n"
+                              "    char        return_args_static[%zu];\n"
+                              "    %s%s       *args = (%s%s*) args_alloc( args_static, %s );\n"
+                              "    %s%sReturn *return_args = (%s%sReturn*) args_alloc( return_args_static, %s );\n"
+                              "\n"
+                              "    if (!args)\n"
+                              "        return (DFBResult) D_OOM();\n"
+                              "\n"
+                              "    if (!return_args) {\n"
+                              "        args_free( args_static, args );\n"
+                              "        return (DFBResult) D_OOM();\n"
+                              "    }\n"
                               "\n"
                               "    D_DEBUG_AT( DirectFB_%s, \"%s_Requestor::%%s()\\n\", __FUNCTION__ );\n"
                               "\n"
@@ -2225,21 +2271,26 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "    ret = (DFBResult) %s_Call( obj, FCEF_NONE, %s%s_%s, args, %s, return_args, %s, NULL );\n"
                               "    if (ret) {\n"
                               "        D_DERROR( ret, \"%%s: %s_Call( %s_%s ) failed!\\n\", __FUNCTION__ );\n"
-                              "        return ret;\n"
+                              "        goto out;\n"
                               "    }\n"
                               "\n"
                               "    if (return_args->result) {\n"
-                              "         /*D_DERROR( return_args->result, \"%%s: %s_%s failed!\\n\", __FUNCTION__ );*/\n"
-                              "         return return_args->result;\n"
+                              "        /*D_DERROR( return_args->result, \"%%s: %s_%s failed!\\n\", __FUNCTION__ );*/\n"
+                              "        goto out;\n"
                               "    }\n"
                               "\n"
                               "%s"
                               "\n"
                               "%s"
+                              "out:\n"
+                              "    args_free( return_args_static, return_args );\n"
+                              "    args_free( args_static, args );\n"
                               "    return DFB_OK;\n"
                               "}\n"
                               "\n",
                         method->ArgumentsOutputObjectDecl().c_str(),
+                        config.static_args_bytes,
+                        config.static_args_bytes,
                         face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(),
                         face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, true ).c_str(),
                         face->object.c_str(), face->name.c_str(),
