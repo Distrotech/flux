@@ -146,7 +146,7 @@ public:
      bool           no_direct;
      bool           call_mode;
      bool           object_ptrs;
-     size_t         static_args_bytes;
+     std::string    static_args_bytes;
 
 public:
      FluxConfig()
@@ -156,7 +156,7 @@ public:
           no_direct( false ),
           call_mode( false ),
           object_ptrs( false ),
-          static_args_bytes( 1000 )
+          static_args_bytes( "1000" )
      {
      }
 
@@ -215,9 +215,7 @@ public:
                     continue;
                }
                if (strncmp (arg, "--static-args-bytes=", 20) == 0) {
-                    static_args_bytes = atoi( &arg[20] );
-                    if (static_args_bytes < 1)
-                         static_args_bytes = 1;
+                    static_args_bytes = &arg[20];
                     continue;
                }
 
@@ -2163,7 +2161,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                     "{\n"
                     "    void *buffer = static_buffer;\n"
                     "\n"
-                    "    if (size > %zu) {\n"
+                    "    if (size > %s) {\n"
                     "        buffer = direct_malloc( size );\n"
                     "        if (!buffer)\n"
                     "            return NULL;\n"
@@ -2172,7 +2170,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                     "    return buffer;\n"
                     "}\n"
                     "\n",
-              config.static_args_bytes );
+              config.static_args_bytes.c_str() );
 
      fprintf( file, "static __inline__ void args_free( void *static_buffer, void *buffer )\n"
                     "{\n"
@@ -2208,7 +2206,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                fprintf( file, "{\n"
                               "    DFBResult           ret = DFB_OK;\n"
                               "%s"
-                              "    char        args_static[%zu];\n"
+                              "    char        args_static[%s];\n"
                               "    %s%s       *args = (%s%s*) args_alloc( args_static, %s );\n"
                               "\n"
                               "    if (!args)\n"
@@ -2235,7 +2233,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "}\n"
                               "\n",
                         method->ArgumentsOutputObjectDecl().c_str(),
-                        config.static_args_bytes,
+                        config.static_args_bytes.c_str(),
                         face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(),
                         face->object.c_str(), face->name.c_str(),
                         method->ArgumentsAssertions().c_str(),
@@ -2249,8 +2247,8 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                fprintf( file, "{\n"
                               "    DFBResult           ret = DFB_OK;\n"
                               "%s"
-                              "    char        args_static[%zu];\n"
-                              "    char        return_args_static[%zu];\n"
+                              "    char        args_static[%s];\n"
+                              "    char        return_args_static[%s];\n"
                               "    %s%s       *args = (%s%s*) args_alloc( args_static, %s );\n"
                               "    %s%sReturn *return_args = (%s%sReturn*) args_alloc( return_args_static, %s );\n"
                               "\n"
@@ -2289,8 +2287,8 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "}\n"
                               "\n",
                         method->ArgumentsOutputObjectDecl().c_str(),
-                        config.static_args_bytes,
-                        config.static_args_bytes,
+                        config.static_args_bytes.c_str(),
+                        config.static_args_bytes.c_str(),
                         face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(),
                         face->object.c_str(), method->name.c_str(), face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, true ).c_str(),
                         face->object.c_str(), face->name.c_str(),
