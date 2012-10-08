@@ -1,3 +1,21 @@
+commit 65e576eef6a624ea399e2b6a77313c97d6a6a61a
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Thu Sep 20 16:16:48 2012 +0200
+
+    version 1.4.2
+
+commit 43a7f399ddc43212cac2e8e2cb8f74c1cc886467
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Sep 15 16:02:17 2012 +0200
+
+    flux: Remove alloca() usage. Add --static-args-bytes= argument. Use direct_malloc/free() for bigger blocks.
+
+commit bdcb3c60acd682ce6f803da0820b30915a5d9fc4
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Jun 14 18:17:23 2012 +0200
+
+    update ChangeLog
+
 commit 5c2dd79d43ad6027a870b358869d4dc519e76f34
 Author: Denis Oliver Kropp <dok@directfb.org>
 Date:   Wed Jun 6 23:30:52 2012 +0200
