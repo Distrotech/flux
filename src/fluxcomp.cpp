@@ -2162,7 +2162,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                     "    void *buffer = static_buffer;\n"
                     "\n"
                     "    if (size > %s) {\n"
-                    "        buffer = direct_malloc( size );\n"
+                    "        buffer = D_MALLOC( size );\n"
                     "        if (!buffer)\n"
                     "            return NULL;\n"
                     "    }\n"
@@ -2175,7 +2175,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
      fprintf( file, "static __inline__ void args_free( void *static_buffer, void *buffer )\n"
                     "{\n"
                     "    if (buffer != static_buffer)\n"
-                    "        direct_free( buffer );\n"
+                    "        D_FREE( buffer );\n"
                     "}\n"
                     "\n" );
 
