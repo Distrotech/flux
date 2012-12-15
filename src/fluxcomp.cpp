@@ -1459,7 +1459,7 @@ Method::ArgumentsInputObjectLookup( const FluxConfig &config ) const
                               "                if (ret) {\n"
                               "                     D_DERROR( ret, \"%%s: Looking up %s by ID %%u failed!\\n\", __FUNCTION__, args->%s_id );\n"
                               "%s"
-                              "                     return DFB_OK;\n"
+                              "                     return ret;\n"
                               "                }\n"
                               "            }\n"
                               "\n",
@@ -1474,7 +1474,7 @@ Method::ArgumentsInputObjectLookup( const FluxConfig &config ) const
                               "            if (ret) {\n"
                               "                 D_DERROR( ret, \"%%s: Looking up %s by ID %%u failed!\\n\", __FUNCTION__, args->%s_id );\n"
                               "%s"
-                              "                 return DFB_OK;\n"
+                              "                 return ret;\n"
                               "            }\n"
                               "\n",
                               arg->type_name.c_str(), arg->name.c_str(), arg->name.c_str(),
@@ -2227,9 +2227,11 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "%s"
                               "\n"
                               "%s"
+                              "\n"
+                              "    return DFB_OK;\n"
                               "out:\n"
                               "    args_free( args_static, args );\n"
-                              "    return DFB_OK;\n"
+                              "    return ret;\n"
                               "}\n"
                               "\n",
                         method->ArgumentsOutputObjectDecl().c_str(),
@@ -2282,10 +2284,12 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "%s"
                               "\n"
                               "%s"
+                              "    return DFB_OK;\n"
+                              "\n"
                               "out:\n"
                               "    args_free( return_args_static, return_args );\n"
                               "    args_free( args_static, args );\n"
-                              "    return DFB_OK;\n"
+                              "    return ret;\n"
                               "}\n"
                               "\n",
                         method->ArgumentsOutputObjectDecl().c_str(),
