@@ -249,7 +249,7 @@ public:
           fprintf( stderr, "   --object-ptrs                  Return object pointers rather than IDs\n" );
           fprintf( stderr, "   --call-mode                    Use call mode function to determine call mode\n" );
           fprintf( stderr, "   -p=, --include-prefix=         Override standard include prefix for includes\n" );
-          fprintf( stderr, "   --static-args-bytes=           Override standard limit for stack based arguments\n" );
+          fprintf( stderr, "   --static-args-bytes=           Override standard limit (1000) for stack based arguments\n" );
           fprintf( stderr, "\n" );
      }
 };
