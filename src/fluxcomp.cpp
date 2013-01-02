@@ -244,6 +244,12 @@ public:
           fprintf( stderr, "   -h, --help                     Show this help message\n" );
           fprintf( stderr, "   -v, --version                  Print version information\n" );
           fprintf( stderr, "   -V, --version-code             Output version code to stdout\n" );
+          fprintf( stderr, "   -c, --generate-c               Generate C instead of C++ code\n" );
+          fprintf( stderr, "   -i, --identity                 Generate caller identity tracking code\n" );
+          fprintf( stderr, "   --object-ptrs                  Return object pointers rather than IDs\n" );
+          fprintf( stderr, "   --call-mode                    Use call mode function to determine call mode\n" );
+          fprintf( stderr, "   -p=, --include-prefix=         Override standard include prefix for includes\n" );
+          fprintf( stderr, "   --static-args-bytes=           Override standard limit for stack based arguments\n" );
           fprintf( stderr, "\n" );
      }
 };
