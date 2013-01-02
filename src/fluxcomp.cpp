@@ -239,7 +239,7 @@ public:
      print_usage( const char *prg_name )
      {
           fprintf( stderr, "\nFlux Compiler Tool (version %s)\n\n", FLUXCOMP_VERSION );
-          fprintf( stderr, "Usage: %s [options]\n\n", prg_name );
+          fprintf( stderr, "Usage: %s [options] <filename>\n\n", prg_name );
           fprintf( stderr, "Options:\n" );
           fprintf( stderr, "   -h, --help                     Show this help message\n" );
           fprintf( stderr, "   -v, --version                  Print version information\n" );
