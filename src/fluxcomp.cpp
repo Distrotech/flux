@@ -2284,6 +2284,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "\n"
                               "    if (return_args->result) {\n"
                               "        /*D_DERROR( return_args->result, \"%%s: %s_%s failed!\\n\", __FUNCTION__ );*/\n"
+                              "        ret = return_args->result;\n"
                               "        goto out;\n"
                               "    }\n"
                               "\n"
