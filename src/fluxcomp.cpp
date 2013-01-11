@@ -312,7 +312,8 @@ class Interface : public Entity
 public:
      Interface()
           :
-          Entity()
+          Entity(),
+          buffered( false )
      {
      }
 
@@ -329,6 +330,7 @@ public:
      std::string              version;
      std::string              object;
      std::string              dispatch;
+     bool                     buffered;
 };
 
 class Method : public Entity
@@ -338,7 +340,8 @@ public:
           :
           Entity(),
           async( false ),
-          queue( false )
+          queue( false ),
+          buffer( false )
      {
      }
 
@@ -354,6 +357,7 @@ public:
      std::string              name;
      bool                     async;
      bool                     queue;
+     bool                     buffer;
 
 
 public:
@@ -655,6 +659,11 @@ Method::SetProperty( const std::string &name,
 
      if (name == "queue") {
           queue = value == "yes";
+          return;
+     }
+
+     if (name == "buffer") {
+          buffer = value == "yes";
           return;
      }
 }
@@ -1846,7 +1855,7 @@ FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
           fprintf( file, "\n"
                          "\n"
                          "\n"
-                         "class %s_Requestor : public %s\n"
+                         "class %s_Requestor : public %s%s\n"
                          "{\n"
                          "private:\n"
                          "    %s *obj;\n"
@@ -1855,14 +1864,22 @@ FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
                          "    %s_Requestor( CoreDFB *core, %s *obj )\n"
                          "        :\n"
                          "        %s( core ),\n"
+                         "%s"
                          "        obj( obj )\n"
                          "    {\n"
                          "    }\n"
-                         "\n"
-                         "public:\n",
-                   face->name.c_str(), face->name.c_str(), face->object.c_str(),
-                   face->name.c_str(), face->object.c_str(), face->name.c_str() );
+                         "\n",
+                   face->name.c_str(), face->name.c_str(), face->buffered ? ", public CallBuffer" : "", face->object.c_str(),
+                   face->name.c_str(), face->object.c_str(), face->name.c_str(),
+                   face->buffered ? "        CallBuffer( 16000 ),\n" : "" );
      }
+
+     if (face->buffered)
+          fprintf( file, "protected:\n"
+                         "    virtual DFBResult flushCalls();\n"
+                         "\n" );
+
+     fprintf( file, "public:\n" );
 
      for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
           const Method *method = dynamic_cast<const Method*>( *iter );
@@ -2185,6 +2202,24 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                     "}\n"
                     "\n" );
 
+     if (face->buffered) {
+          fprintf( file, "\n"
+                         "DFBResult\n"
+                         "%s_Requestor::flushCalls()\n"
+                         "{\n"
+                         "     DFBResult ret;\n"
+                         "\n"
+                         "     ret = (DFBResult) %s_Call( obj, (FusionCallExecFlags)(FCEF_ONEWAY | FCEF_QUEUE), -1, buffer, buffer_len, NULL, 0, NULL );\n"
+                         "     if (ret) {\n"
+                         "         D_DERROR( ret, \"%%s: %s_Call( -1 ) failed!\\n\", __FUNCTION__ );\n"
+                         "         return ret;\n"
+                         "     }\n"
+                         "\n"
+                         "     return DFB_OK;\n"
+                         "}\n",
+                   face->name.c_str(), face->object.c_str(), face->object.c_str() );
+     }
+
      for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
           const Method *method = dynamic_cast<const Method*>( *iter );
 
@@ -2208,7 +2243,39 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
 
           }
 
-          if (method->async) {
+          if (method->buffer && face->buffered) {
+               fprintf( file, "{\n"
+                              "    %s%s *args = (%s%s*) prepare( %s%s_%s, %s );\n"
+                              "\n"
+                              "    if (!args)\n"
+                              "        return (DFBResult) D_OOM();\n"
+                              "\n"
+                              "    D_DEBUG_AT( DirectFB_%s, \"%s_Requestor::%%s()\\n\", __FUNCTION__ );\n"
+                              "\n"
+                              "%s"
+                              "\n"
+                              "%s"
+                              "\n"
+                              "    commit();\n"
+                              "\n"
+                              "%s"
+                              "\n"
+                              "%s"
+                              "\n"
+                              "    return DFB_OK;\n"
+                              "}\n"
+                              "\n",
+                        face->object.c_str(), method->name.c_str(),
+                        face->object.c_str(), method->name.c_str(),
+                        config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(),
+                        method->ArgumentsSize( face, false ).c_str(),
+                        face->object.c_str(), face->name.c_str(),
+                        method->ArgumentsAssertions().c_str(),
+                        method->ArgumentsInputAssignments().c_str(),
+                        method->ArgumentsOutputAssignments().c_str(),
+                        method->ArgumentsOutputObjectCatch( config ).c_str() );
+          }
+          else if (method->async) {
                fprintf( file, "{\n"
                               "    DFBResult           ret = DFB_OK;\n"
                               "%s"
@@ -2224,6 +2291,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "\n"
                               "%s"
                               "\n"
+                              "%s"
                               "    ret = (DFBResult) %s_Call( obj, (FusionCallExecFlags)(FCEF_ONEWAY%s), %s%s_%s, args, %s, NULL, 0, NULL );\n"
                               "    if (ret) {\n"
                               "        D_DERROR( ret, \"%%s: %s_Call( %s_%s ) failed!\\n\", __FUNCTION__ );\n"
@@ -2245,6 +2313,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                         face->object.c_str(), face->name.c_str(),
                         method->ArgumentsAssertions().c_str(),
                         method->ArgumentsInputAssignments().c_str(),
+                        face->buffered ? "    flush();\n\n" : "",
                         face->object.c_str(), method->queue ? " | FCEF_QUEUE" : "", config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
                         method->ArgumentsOutputAssignments().c_str(),
@@ -2275,6 +2344,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "\n"
                               "%s"
                               "\n"
+                              "%s"
                               "    ret = (DFBResult) %s_Call( obj, FCEF_NONE, %s%s_%s, args, %s, return_args, %s, NULL );\n"
                               "    if (ret) {\n"
                               "        D_DERROR( ret, \"%%s: %s_Call( %s_%s ) failed!\\n\", __FUNCTION__ );\n"
@@ -2305,6 +2375,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                         face->object.c_str(), face->name.c_str(),
                         method->ArgumentsAssertions().c_str(),
                         method->ArgumentsInputAssignments().c_str(),
+                        face->buffered ? "     flush();\n\n" : "",
                         face->object.c_str(), config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(), method->ArgumentsSize( face, true ).c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
                         face->object.c_str(), method->name.c_str(),
@@ -2448,7 +2519,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                     "                                unsigned int  ret_size,\n"
                     "                                unsigned int *ret_length )\n"
                     "{\n"
-                    "    DFBResult ret;\n"
+                    "    DFBResult ret = DFB_OK;\n"
                     "\n"
                     "    D_DEBUG_AT( DirectFB_%s, \"%sDispatch::%%s( %%p )\\n\", __FUNCTION__, obj );\n",
               face->object.c_str(), face->dispatch.c_str(),
@@ -2457,6 +2528,30 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
      if (config.identity)
           fprintf( file, "\n"
                          "    Core_PushIdentity( caller );\n" );
+
+     if (face->buffered) {
+          fprintf( file, "\n"
+                         "    if (method == -1) {\n"
+                         "        unsigned int consumed = 0;\n"
+                         "\n"
+                         "        while (consumed < length) {\n"
+                         "            u32 *p = (u32*)( (u8*) ptr + consumed );\n"
+                         "\n"
+                         "            if ((p[0] > length - consumed) || (consumed + p[0] > length)) {\n"
+                         "                D_WARN( \"invalid data from caller %%lu\", caller );\n"
+                         "                break;\n"
+                         "            }\n"
+                         "\n"
+                         "            consumed += p[0];\n"
+                         "\n"
+                         "            ret = __%sDispatch__Dispatch( obj, caller, p[1], p + 2, p[0] - sizeof(int) * 2, NULL, 0, NULL );\n"
+                         "            if (ret)\n"
+                         "                break;\n"
+                         "        }\n"
+                         "    }\n"
+                         "    else\n",
+                   face->object.c_str() );
+     }
 
      fprintf( file, "\n"
                     "    ret = __%sDispatch__Dispatch( obj, caller, method, ptr, length, ret_ptr, ret_size, ret_length );\n",
@@ -2541,7 +2636,19 @@ main( int argc, char *argv[] )
           FluxComp fc;
 
           for (Entity::vector::const_iterator iter = faces.begin(); iter != faces.end(); iter++) {
-               const Interface *face = dynamic_cast<const Interface*>( *iter );
+               Interface *face = dynamic_cast<Interface*>( *iter );
+
+               for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
+                    Method *method = dynamic_cast<Method*>( *iter );
+
+                    if (!method->async || !method->queue)
+                         method->buffer = false;
+
+                    if (method->buffer) {
+                         face->buffered = true;
+                         break;
+                    }
+               }
 
                fc.GenerateHeader( face, config );
                fc.GenerateSource( face, config );
