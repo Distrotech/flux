@@ -1,3 +1,89 @@
+commit d10258fc92eece837491ce9afe86aed44a42e0d6
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Jan 11 22:45:50 2013 +0100
+
+    flux: add 'buffer' property to methods (valid when async+queue also set)
+    
+    Methods being marked with 'buffer' set to 'yes' will not cause an individual
+    fusion call. Instead all buffered methods are appending to a local buffer that
+    is "sent" to the master object via one fusion call (using num -1).
+    
+    This reduces overhead in libfusion and fusion.ko when lots of buffered calls
+    are made, e.g. via CoreGraphicsState for rendering.
+
+commit e698ce0dbeda86e95ff49e8628c4eb8a8d522fee
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Thu Jan 10 18:44:33 2013 +0100
+
+    flux 1.4.3
+
+commit 52d5e1be77f64440653213d8f556e1809c6cf71c
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Jan 10 14:55:06 2013 +0100
+
+    flux: fix leak introduced by error propagation on Dec 15th 2012
+
+commit 2d142a3f293de3c48108f8b370664655aacf8012
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Jan 3 03:29:29 2013 +0100
+
+    flux: Return result from calls that fail on server side.
+
+commit 4be3c6791b37fd3223d312db6cd8557e34bd286a
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Jan 2 02:07:47 2013 +0100
+
+    flux: Add default for --static-args-bytes to help.
+
+commit 83ad7900762adf86e0cfca76280a64e2f310bc5a
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Jan 2 02:05:03 2013 +0100
+
+    flux: Add missing '<filename>' to help.
+
+commit 98d388f4937edd68edeb95901ad1c3dc399d337f
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Jan 2 02:03:53 2013 +0100
+
+    flux: Add description of options in help.
+
+commit eeb59615b38fc5aaf3e84edbeafc2df3b56290d0
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Dec 15 17:10:47 2012 +0100
+
+    flux: return errors from calls
+
+commit 080f970b6ac98f0f824a7ee8ae8aed0e1aa2d665
+Author: Marek Pikarski <mass@directfb.org>
+Date:   Mon Oct 22 13:38:02 2012 +0200
+
+    flux: fix potential memleak
+
+commit afdd61798313a84f0a0700731e41d81ce2144855
+Author: Marek Pikarski <mass@directfb.org>
+Date:   Thu Oct 11 16:59:58 2012 +0200
+
+    flux: use direct macros instead of direct functions (fixes rare compilation issues)
+
+commit d22c6931e0336c06e6b34ad249513702d40f38bc
+Merge: df0a8e4 8fd3efc
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Oct 8 20:36:21 2012 +0200
+
+    Merge branch 'master' of git+ssh://git.directfb.org/git/directfb/core/flux
+
+commit df0a8e407e13229e2722e7a8f4a3fb8629017c89
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Oct 8 20:35:23 2012 +0200
+
+    flux: allow strings for --static-args-bytes option (1.4.2)
+
+commit 8fd3efc945d5370e76dbd97f904dd3888840fea1
+Author: Andreas Shimokawa <andi@directfb.org>
+Date:   Thu Sep 20 16:18:24 2012 +0200
+
+    update changelog
+
 commit 65e576eef6a624ea399e2b6a77313c97d6a6a61a
 Author: Andreas Shimokawa <andi@directfb.org>
 Date:   Thu Sep 20 16:16:48 2012 +0200
