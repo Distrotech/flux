@@ -359,7 +359,6 @@ public:
      bool                     queue;
      bool                     buffer;
 
-
 public:
      static std::string
      PrintParam( std::string string_buffer,
@@ -416,6 +415,9 @@ public:
      std::string ArgumentsNames() const;
      std::string ArgumentsSize( const Interface *face, bool output ) const;
      std::string ArgumentsSizeReturn( const Interface *face ) const;
+
+     std::string OpenSplitArgumentsIfRequired() const;
+     std::string CloseSplitArgumentsIfRequired() const;
 };
 
 class Arg : public Entity
@@ -425,7 +427,8 @@ public:
           :
           Entity(),
           optional( false ),
-          array( false )
+          array( false ),
+          split( false )
      {
      }
 
@@ -448,6 +451,7 @@ public:
      std::string              count;
      std::string              max;
 
+     bool                     split;
 
 public:
      std::string param_name() const
@@ -501,7 +505,7 @@ public:
                if (use_args)
                     return std::string("args->") + count + " * sizeof(" + type_name + ")";
                else
-                    return count + " * sizeof(" + type_name + ")";
+                    return (split ? std::string( "num_records" ) : count) + " * sizeof(" + type_name + ")";
           }
 
           return std::string("sizeof(") + type_name + ")";
@@ -705,6 +709,11 @@ Arg::SetProperty( const std::string &name,
 
      if (name == "max") {
           max = value;
+          return;
+     }
+
+     if (name == "split" && value == "yes") {
+          split = true;
           return;
      }
 }
@@ -1157,6 +1166,16 @@ std::string
 Method::ArgumentsInputAssignments() const
 {
      std::string result;
+     bool        split = false;
+
+     for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
+          const Arg *arg = dynamic_cast<const Arg*>( *iter );
+
+          if (arg->split) {
+               split = true;
+               break;
+          }
+     }
 
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
@@ -1172,8 +1191,10 @@ Method::ArgumentsInputAssignments() const
 
                if (arg->type == "struct")
                     result += std::string("    args->") + arg->name + " = *" + arg->name + ";\n";
-               else if (arg->type == "enum" || arg->type == "int")
+               else if (arg->type == "enum")
                     result += std::string("    args->") + arg->name + " = " + arg->name + ";\n";
+               else if (arg->type == "int")
+                    result += std::string("    args->") + arg->name + " = " + (split ? (arg->name == "num" ? std::string( "num_records" ) : arg->name) : arg->name) + ";\n";
                else if (arg->type == "object")
                     result += std::string("    args->") + arg->name + "_id = " + arg->type_name + "_GetID( " + arg->name + " );\n";
 
@@ -1258,6 +1279,57 @@ Method::ArgumentsOutputAssignments() const
                     D_UNIMPLEMENTED();
           }
      }
+
+     return result;
+}
+
+std::string
+Method::OpenSplitArgumentsIfRequired() const
+{
+     std::string result;
+     std::string record_sizes;
+     int         split = 0;
+
+     for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
+          const Arg *arg = dynamic_cast<const Arg*>( *iter );
+
+          if (arg->split) {
+               if (split)
+                    record_sizes += std::string( " + " );
+
+               record_sizes += std::string( "sizeof(" ) + arg->type_name + std::string( ")" );
+               split++;
+          }
+     }
+
+     if (!split)
+          return result;
+
+     result += std::string( "const u32 record_size = " ) + record_sizes + std::string( ";\n" );
+     result += std::string( "const u32 max_records = " ) + std::string( "CALLBUFFER_FUSION_MESSAGE_SIZE / record_size;\n" );
+     result += std::string( "for (u32 i = 0; i < num; i+= max_records) {\n" );
+     result += std::string( "    const u32 num_records = num_records > num ? num : num_records;\n" );
+
+     return result;
+}
+
+std::string
+Method::CloseSplitArgumentsIfRequired() const
+{
+     std::string result;
+     bool        split = false;
+
+     for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
+          const Arg *arg = dynamic_cast<const Arg*>( *iter );
+
+          if (arg->split) {
+               split = true;
+               break;
+          }
+     }
+
+     if (split)
+          result += "}";
 
      return result;
 }
@@ -1600,6 +1672,19 @@ std::string
 Method::ArgumentsSize( const Interface *face, bool output ) const
 {
      std::string result = "sizeof(";
+     bool        split  = false;
+
+     for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
+          const Arg *arg = dynamic_cast<const Arg*>( *iter );
+
+          if (arg->split) {
+               split = true;
+               break;
+          }
+     }
+
+     if (split)
+          return std::string( "record_size * num_records" );
 
      if (output)
           result += face->object + name + "Return)";
@@ -2245,6 +2330,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
 
           if (method->buffer && face->buffered) {
                fprintf( file, "{\n"
+                              "%s"
                               "    %s%s *args = (%s%s*) prepare( %s%s_%s, %s );\n"
                               "\n"
                               "    if (!args)\n"
@@ -2261,10 +2347,12 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "%s"
                               "\n"
                               "%s"
+                              "%s"
                               "\n"
                               "    return DFB_OK;\n"
                               "}\n"
                               "\n",
+                        method->OpenSplitArgumentsIfRequired().c_str(),
                         face->object.c_str(), method->name.c_str(),
                         face->object.c_str(), method->name.c_str(),
                         config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(),
@@ -2273,7 +2361,8 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                         method->ArgumentsAssertions().c_str(),
                         method->ArgumentsInputAssignments().c_str(),
                         method->ArgumentsOutputAssignments().c_str(),
-                        method->ArgumentsOutputObjectCatch( config ).c_str() );
+                        method->ArgumentsOutputObjectCatch( config ).c_str(),
+                        method->CloseSplitArgumentsIfRequired().c_str() );
           }
           else if (method->async) {
                fprintf( file, "{\n"
