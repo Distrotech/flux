@@ -1964,7 +1964,8 @@ FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
                          "    virtual DFBResult flushCalls();\n"
                          "\n" );
 
-     fprintf( file, "public:\n" );
+     if (!config.c_mode)
+          fprintf( file, "public:\n" );
 
      for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
           const Method *method = dynamic_cast<const Method*>( *iter );
