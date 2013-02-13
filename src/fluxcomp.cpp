@@ -1308,7 +1308,7 @@ Method::OpenSplitArgumentsIfRequired() const
      result += std::string( "const u32 record_size = " ) + record_sizes + std::string( ";\n" );
      result += std::string( "const u32 max_records = " ) + std::string( "CALLBUFFER_FUSION_MESSAGE_SIZE / record_size;\n" );
      result += std::string( "for (u32 i = 0; i < num; i+= max_records) {\n" );
-     result += std::string( "    const u32 num_records = num_records > num ? num : num_records;\n" );
+     result += std::string( "    const u32 num_records = num > max_records ? max_records : num;\n" );
 
      return result;
 }
