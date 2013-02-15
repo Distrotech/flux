@@ -1683,13 +1683,13 @@ Method::ArgumentsSize( const Interface *face, bool output ) const
           }
      }
 
-     if (split)
-          return std::string( "record_size * num_records" );
-
      if (output)
           result += face->object + name + "Return)";
      else
           result += face->object + name + ")";
+
+     if (split)
+          return result += std::string( " + record_size * num_records" );
 
      for (Entity::vector::const_iterator iter = entities.begin(); iter != entities.end(); iter++) {
           const Arg *arg = dynamic_cast<const Arg*>( *iter );
