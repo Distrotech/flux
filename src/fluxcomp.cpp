@@ -259,7 +259,9 @@ public:
 class Entity
 {
 public:
-     Entity()
+     Entity( Entity *parent )
+          :
+          parent( parent )
      {
      }
 
@@ -287,7 +289,8 @@ private:
      size_t         length;
 
 public:
-     Entity::vector entities;
+     Entity::vector  entities;
+     Entity         *parent;
 
      void Open( const char *buf ) {
           this->buf = buf;
@@ -296,12 +299,13 @@ public:
      void Close( size_t length ) {
           this->length = length;
 
-          GetEntities( buf, length, entities );
+          GetEntities( buf, length, entities, this );
      }
 
      static void GetEntities( const char     *buf,
                               size_t          length,
-                              Entity::vector &out_vector );
+                              Entity::vector &out_vector,
+                              Entity         *parent );
 
      static DirectResult GetEntities( const char     *filename,
                                       Entity::vector &out_vector );
@@ -310,9 +314,9 @@ public:
 class Interface : public Entity
 {
 public:
-     Interface()
+     Interface( Entity *parent )
           :
-          Entity(),
+          Entity( parent ),
           buffered( false )
      {
      }
@@ -336,9 +340,9 @@ public:
 class Method : public Entity
 {
 public:
-     Method()
+     Method( Entity *parent )
           :
-          Entity(),
+          Entity( parent ),
           async( false ),
           queue( false ),
           buffer( false )
@@ -423,9 +427,9 @@ public:
 class Arg : public Entity
 {
 public:
-     Arg()
+     Arg( Entity *parent )
           :
-          Entity(),
+          Entity( parent ),
           optional( false ),
           array( false ),
           split( false )
@@ -723,7 +727,8 @@ Arg::SetProperty( const std::string &name,
 void
 Entity::GetEntities( const char     *buf,
                      size_t          length,
-                     Entity::vector &out_vector )
+                     Entity::vector &out_vector,
+                     Entity         *parent )
 {
      size_t       i;
      unsigned int level   = 0;
@@ -816,7 +821,7 @@ Entity::GetEntities( const char     *buf,
                                                        if (names[level] == "interface") {
                                                             D_ASSERT( entity == NULL );
 
-                                                            entity = new Interface();
+                                                            entity = new Interface( parent );
 
                                                             entity->Open( &buf[i + 1] );
 
@@ -825,7 +830,7 @@ Entity::GetEntities( const char     *buf,
                                                        if (names[level] == "method") {
                                                             D_ASSERT( entity == NULL );
 
-                                                            entity = new Method();
+                                                            entity = new Method( parent );
 
                                                             entity->Open( &buf[i + 1] );
 
@@ -834,7 +839,7 @@ Entity::GetEntities( const char     *buf,
                                                        if (names[level] == "arg") {
                                                             D_ASSERT( entity == NULL );
 
-                                                            entity = new Arg();
+                                                            entity = new Arg( parent );
 
                                                             entity->Open( &buf[i + 1] );
 
@@ -929,7 +934,7 @@ Entity::GetEntities( const char     *filename,
      }
 
 
-     Entity::GetEntities( (const char*) ptr, stat.st_size, out_vector );
+     Entity::GetEntities( (const char*) ptr, stat.st_size, out_vector, NULL );
 
 
 out:
@@ -1544,7 +1549,7 @@ Method::ArgumentsInputObjectLookup( const FluxConfig &config ) const
                               "            if (args->%s_set) {\n"
                               "                ret = (DFBResult) %s_Lookup( core_dfb, args->%s_id, caller, &%s );\n"
                               "                if (ret) {\n"
-                              "                     D_DERROR( ret, \"%%s: Looking up %s by ID %%u failed!\\n\", __FUNCTION__, args->%s_id );\n"
+                              "                     D_DERROR( ret, \"%%s(%s): Looking up %s by ID %%u failed!\\n\", __FUNCTION__, args->%s_id );\n"
                               "%s"
                               "                     return ret;\n"
                               "                }\n"
@@ -1552,20 +1557,20 @@ Method::ArgumentsInputObjectLookup( const FluxConfig &config ) const
                               "\n",
                               arg->name.c_str(),
                               arg->type_name.c_str(), arg->name.c_str(), arg->name.c_str(),
-                              arg->name.c_str(), arg->name.c_str(),
+                              name.c_str(), arg->name.c_str(), arg->name.c_str(),
                               async ? "" : "                     return_args->result = ret;\n" );
                }
                else {
                     snprintf( buf, sizeof(buf),
                               "            ret = (DFBResult) %s_Lookup( core_dfb, args->%s_id, caller, &%s );\n"
                               "            if (ret) {\n"
-                              "                 D_DERROR( ret, \"%%s: Looking up %s by ID %%u failed!\\n\", __FUNCTION__, args->%s_id );\n"
+                              "                 D_DERROR( ret, \"%%s(%s): Looking up %s by ID %%u failed!\\n\", __FUNCTION__, args->%s_id );\n"
                               "%s"
                               "                 return ret;\n"
                               "            }\n"
                               "\n",
                               arg->type_name.c_str(), arg->name.c_str(), arg->name.c_str(),
-                              arg->name.c_str(), arg->name.c_str(),
+                              name.c_str(), arg->name.c_str(), arg->name.c_str(),
                               async ? "" : "                 return_args->result = ret;\n" );
                }
 
