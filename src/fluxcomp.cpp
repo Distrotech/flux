@@ -317,7 +317,8 @@ public:
      Interface( Entity *parent )
           :
           Entity( parent ),
-          buffered( false )
+          buffered( false ),
+          core( "CoreDFB" )
      {
      }
 
@@ -335,6 +336,7 @@ public:
      std::string              object;
      std::string              dispatch;
      bool                     buffered;
+     std::string              core;
 };
 
 class Method : public Entity
@@ -647,6 +649,11 @@ Interface::SetProperty( const std::string &name,
 
      if (name == "dispatch") {
           dispatch = value;
+          return;
+     }
+
+     if (name == "core") {
+          core = value;
           return;
      }
 }
@@ -1815,12 +1822,12 @@ FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
 
      fprintf( file, "\n"
                     "void %s_Init_Dispatch(\n"
-                    "                    CoreDFB              *core,\n"
+                    "                    %-20s *core,\n"
                     "                    %-20s *obj,\n"
                     "                    FusionCall           *call\n"
                     ");\n"
                     "\n",
-              face->object.c_str(), face->dispatch.c_str() );
+              face->object.c_str(), face->core.c_str(), face->dispatch.c_str() );
 
      fprintf( file, "void  %s_Deinit_Dispatch(\n"
                     "                    FusionCall           *call\n"
@@ -1904,16 +1911,15 @@ FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
                          "    %s *obj;\n"
                          "\n"
                          "public:\n"
-                         "    %s_Real( CoreDFB *core, %s *obj )\n"
+                         "    %s_Real( %s *core, %s *obj )\n"
                          "        :\n"
                          "        %s( core ),\n"
                          "        obj( obj )\n"
                          "    {\n"
                          "    }\n"
-                         "\n"
-                         "public:\n",
+                         "\n",
                    face->name.c_str(), face->name.c_str(), face->dispatch.c_str(),
-                   face->name.c_str(), face->dispatch.c_str(), face->name.c_str() );
+                   face->name.c_str(), face->core.c_str(), face->dispatch.c_str(), face->name.c_str() );
      }
 
      for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
@@ -1951,7 +1957,7 @@ FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
                          "    %s *obj;\n"
                          "\n"
                          "public:\n"
-                         "    %s_Requestor( CoreDFB *core, %s *obj )\n"
+                         "    %s_Requestor( %s *core, %s *obj )\n"
                          "        :\n"
                          "        %s( core ),\n"
                          "%s"
@@ -1960,7 +1966,7 @@ FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
                          "    }\n"
                          "\n",
                    face->name.c_str(), face->name.c_str(), face->buffered ? ", public CallBuffer" : "", face->object.c_str(),
-                   face->name.c_str(), face->object.c_str(), face->name.c_str(),
+                   face->name.c_str(), face->core.c_str(), face->object.c_str(), face->name.c_str(),
                    face->buffered ? "        CallBuffer( 16000 ),\n" : "" );
      }
 
@@ -2240,12 +2246,12 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
 
 
      fprintf( file, "void %s_Init_Dispatch(\n"
-                    "                    CoreDFB              *core,\n"
+                    "                    %-20s *core,\n"
                     "                    %-20s *obj,\n"
                     "                    FusionCall           *call\n"
                     ")\n"
                     "{\n",
-                    face->object.c_str(), face->dispatch.c_str() );
+                    face->object.c_str(), face->core.c_str(), face->dispatch.c_str() );
 
      fprintf( file, "    fusion_call_init3( call, %s_Dispatch, obj, core->world );\n"
                     "}\n"
@@ -2680,14 +2686,14 @@ FluxComp::PrintInterface( FILE              *file,
                     "class %s : public %s\n"
                     "{\n"
                     "public:\n"
-                    "    %s( CoreDFB *core )\n"
+                    "    %s( %s *core )\n"
                     "        :\n"
                     "        %s( core )\n"
                     "    {\n"
                     "    }\n"
                     "\n"
                     "public:\n",
-              name.c_str(), super.c_str(), name.c_str(), super.c_str() );
+              name.c_str(), super.c_str(), name.c_str(), face->core.c_str(), super.c_str() );
 
      for (Entity::vector::const_iterator iter = face->entities.begin(); iter != face->entities.end(); iter++) {
           const Method *method = dynamic_cast<const Method*>( *iter );
