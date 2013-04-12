@@ -147,6 +147,7 @@ public:
      bool           call_mode;
      bool           object_ptrs;
      std::string    static_args_bytes;
+     bool           dispatch_error_abort;
 
 public:
      FluxConfig()
@@ -156,7 +157,8 @@ public:
           no_direct( false ),
           call_mode( false ),
           object_ptrs( false ),
-          static_args_bytes( "1000" )
+          static_args_bytes( "1000" ),
+          dispatch_error_abort( false )
      {
      }
 
@@ -219,6 +221,11 @@ public:
                     continue;
                }
 
+               if (strcmp (arg, "--dispatch-error-abort") == 0) {
+                    dispatch_error_abort = true;
+                    continue;
+               }
+
                if (filename || access( arg, R_OK )) {
                     print_usage( argv[0] );
                     return false;
@@ -250,6 +257,7 @@ public:
           fprintf( stderr, "   --call-mode                    Use call mode function to determine call mode\n" );
           fprintf( stderr, "   -p=, --include-prefix=         Override standard include prefix for includes\n" );
           fprintf( stderr, "   --static-args-bytes=           Override standard limit (1000) for stack based arguments\n" );
+          fprintf( stderr, "   --dispatch-error-abort         Abort execution when object lookups etc fail\n" );
           fprintf( stderr, "\n" );
      }
 };
@@ -1558,6 +1566,7 @@ Method::ArgumentsInputObjectLookup( const FluxConfig &config ) const
                               "                if (ret) {\n"
                               "                     D_DERROR( ret, \"%%s(%s): Looking up %s by ID %%u failed!\\n\", __FUNCTION__, args->%s_id );\n"
                               "%s"
+                              "%s"
                               "                     return ret;\n"
                               "                }\n"
                               "            }\n"
@@ -1565,7 +1574,8 @@ Method::ArgumentsInputObjectLookup( const FluxConfig &config ) const
                               arg->name.c_str(),
                               arg->type_name.c_str(), arg->name.c_str(), arg->name.c_str(),
                               name.c_str(), arg->name.c_str(), arg->name.c_str(),
-                              async ? "" : "                     return_args->result = ret;\n" );
+                              async ? "" : "                     return_args->result = ret;\n",
+                              config.dispatch_error_abort ? "                     D_BREAK( \"could not lookup object\" );\n" : "" );
                }
                else {
                     snprintf( buf, sizeof(buf),
@@ -1573,12 +1583,14 @@ Method::ArgumentsInputObjectLookup( const FluxConfig &config ) const
                               "            if (ret) {\n"
                               "                 D_DERROR( ret, \"%%s(%s): Looking up %s by ID %%u failed!\\n\", __FUNCTION__, args->%s_id );\n"
                               "%s"
+                              "%s"
                               "                 return ret;\n"
                               "            }\n"
                               "\n",
                               arg->type_name.c_str(), arg->name.c_str(), arg->name.c_str(),
                               name.c_str(), arg->name.c_str(), arg->name.c_str(),
-                              async ? "" : "                 return_args->result = ret;\n" );
+                              async ? "" : "                 return_args->result = ret;\n",
+                              config.dispatch_error_abort ? "                 D_BREAK( \"could not lookup object\" );\n" : "" );
                }
 
                result += buf;
