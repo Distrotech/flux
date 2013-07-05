@@ -1,11 +1,13 @@
 /*
-   (c) Copyright 2001-2011  The world wide DirectFB Open Source Community (directfb.org)
+   (c) Copyright 2012-2013  DirectFB integrated media GmbH
+   (c) Copyright 2001-2013  The world wide DirectFB Open Source Community (directfb.org)
    (c) Copyright 2000-2004  Convergence (integrated media) GmbH
 
    All rights reserved.
 
    Written by Denis Oliver Kropp <dok@directfb.org>,
-              Andreas Hundt <andi@fischlustig.de>,
+              Andreas Shimokawa <andi@directfb.org>,
+              Marek Pikarski <mass@directfb.org>,
               Sven Neumann <neo@directfb.org>,
               Ville Syrjälä <syrjala@sci.fi> and
               Claudio Ciccani <klan@users.sf.net>.
@@ -105,13 +107,15 @@ void direct_print_memleaks() {};
 
 static const char *license =
 "/*\n"
-"   (c) Copyright 2001-2011  The world wide DirectFB Open Source Community (directfb.org)\n"
+"   (c) Copyright 2012-2013  DirectFB integrated media GmbH\n"
+"   (c) Copyright 2001-2013  The world wide DirectFB Open Source Community (directfb.org)\n"
 "   (c) Copyright 2000-2004  Convergence (integrated media) GmbH\n"
 "\n"
 "   All rights reserved.\n"
 "\n"
 "   Written by Denis Oliver Kropp <dok@directfb.org>,\n"
-"              Andreas Hundt <andi@fischlustig.de>,\n"
+"              Andreas Shimokawa <andi@directfb.org>,\n"
+"              Marek Pikarski <mass@directfb.org>,\n"
 "              Sven Neumann <neo@directfb.org>,\n"
 "              Ville Syrjälä <syrjala@sci.fi> and\n"
 "              Claudio Ciccani <klan@users.sf.net>.\n"
