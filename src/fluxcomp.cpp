@@ -152,6 +152,7 @@ public:
      bool           object_ptrs;
      std::string    static_args_bytes;
      bool           dispatch_error_abort;
+     std::string    output_dir;
 
 public:
      FluxConfig()
@@ -162,7 +163,8 @@ public:
           call_mode( false ),
           object_ptrs( false ),
           static_args_bytes( "1000" ),
-          dispatch_error_abort( false )
+          dispatch_error_abort( false ),
+          output_dir("")
      {
      }
 
@@ -230,6 +232,11 @@ public:
                     continue;
                }
 
+               if (strncmp (arg, "-o=", 3) == 0) {
+                    output_dir = std::string(&arg[3]) + "/";
+                    continue;
+               }
+
                if (filename || access( arg, R_OK )) {
                     print_usage( argv[0] );
                     return false;
@@ -262,6 +269,7 @@ public:
           fprintf( stderr, "   -p=, --include-prefix=         Override standard include prefix for includes\n" );
           fprintf( stderr, "   --static-args-bytes=           Override standard limit (1000) for stack based arguments\n" );
           fprintf( stderr, "   --dispatch-error-abort         Abort execution when object lookups etc fail\n" );
+          fprintf( stderr, "   -o=                            write to output directory\n" );
           fprintf( stderr, "\n" );
      }
 };
@@ -1787,7 +1795,7 @@ void
 FluxComp::GenerateHeader( const Interface *face, const FluxConfig &config )
 {
      FILE        *file;
-     std::string  filename = face->object + ".h";
+     std::string  filename = config.output_dir + face->object + ".h";
 
      file = fopen( filename.c_str(), "w" );
      if (!file) {
@@ -2053,7 +2061,7 @@ void
 FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
 {
      FILE        *file;
-     std::string  filename = face->object;
+     std::string  filename = config.output_dir + face->object;
      bool         direct   = true;
 
      if (!config.c_mode)
