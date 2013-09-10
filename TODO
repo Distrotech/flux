@@ -40,3 +40,22 @@ E.g.:
 			type	s32
 		}
 	}
+
+
+
+
+
+Flux Environment / Runtime
+
+- make independent from CoreDFB
+- [make independent from Fusion]
+- support async returns
+
+
+	foo->retained = Flux_RetainCall();
+
+	...
+
+	Flux_ReturnCall( foo->retained, ptr, length );
+
+

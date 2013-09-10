@@ -525,6 +525,21 @@ public:
           return "x";
      }
 
+     std::string typeCast() const
+     {
+          if (type == "int") {
+               if (type_name == "u64")
+                    return "(unsigned long long) ";
+
+               if (type_name == "s64")
+                    return "(long long) ";
+
+               return "";
+          }
+
+          return "";
+     }
+
      std::string size( bool use_args ) const
      {
           if (array) {
@@ -1645,8 +1660,9 @@ Method::ArgumentsInputDebug( const FluxConfig &config,
                     char buf[1000];
 
                     snprintf( buf, sizeof(buf),
-                              "            D_DEBUG_AT( DirectFB_%s, \"  -> %s = %%%s\\n\", args->%s );\n",
-                              face->object.c_str(), arg->name.c_str(), arg->formatCharacter().c_str(), arg->name.c_str() );
+                              "            D_DEBUG_AT( DirectFB_%s, \"  -> %s = %%%s\\n\", %sargs->%s );\n",
+                              face->object.c_str(), arg->name.c_str(), arg->formatCharacter().c_str(),
+                              arg->typeCast().c_str(), arg->name.c_str() );
 
                     result += buf;
                }
