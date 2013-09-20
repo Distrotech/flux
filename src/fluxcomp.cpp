@@ -365,6 +365,7 @@ public:
      Method( Entity *parent )
           :
           Entity( parent ),
+          indirect( false ),
           async( false ),
           queue( false ),
           buffer( false )
@@ -381,6 +382,7 @@ public:
 
 
      std::string              name;
+     bool                     indirect;
      bool                     async;
      bool                     queue;
      bool                     buffer;
@@ -699,6 +701,11 @@ Method::SetProperty( const std::string &name,
 {
      if (name == "name") {
           this->name = value;
+          return;
+     }
+
+     if (name == "indirect") {
+          indirect = value == "yes";
           return;
      }
 
@@ -2153,7 +2160,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                                         "\n"
                                         "    switch (CoreDFB_CallMode( core_dfb )) {\n"
                                         "        case COREDFB_CALL_DIRECT:" );
-                    if (direct)
+                    if (direct && !method->indirect)
                          fprintf( file, "{\n"
                                         "            DirectFB::%s_Real real( core_dfb, obj );\n"
                                         "\n"
@@ -2222,7 +2229,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                                         "\n"                                        
                                         "    switch (CoreDFB_CallMode( core_dfb )) {\n"
                                         "        case COREDFB_CALL_DIRECT:" );
-                    if (direct)
+                    if (direct && !method->indirect)
                          fprintf( file, "{\n"
                                         "            Core_PushCalling();\n"
                                         "            ret = %s_Real__%s( obj%s%s );\n"
@@ -2439,7 +2446,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "%s"
                               "\n"
                               "%s"
-                              "    ret = (DFBResult) %s_Call( obj, (FusionCallExecFlags)(FCEF_ONEWAY%s), %s%s_%s, args, %s, NULL, 0, NULL );\n"
+                              "    ret = (DFBResult) %s_Call( obj, (FusionCallExecFlags)(FCEF_ONEWAY%s%s), %s%s_%s, args, %s, NULL, 0, NULL );\n"
                               "    if (ret) {\n"
                               "        D_DERROR( ret, \"%%s: %s_Call( %s_%s ) failed!\\n\", __FUNCTION__ );\n"
                               "        goto out;\n"
@@ -2461,7 +2468,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                         method->ArgumentsAssertions().c_str(),
                         method->ArgumentsInputAssignments().c_str(),
                         face->buffered ? "    flush();\n\n" : "",
-                        face->object.c_str(), method->queue ? " | FCEF_QUEUE" : "", config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(),
+                        face->object.c_str(), method->queue ? " | FCEF_QUEUE" : "", method->indirect ? " | FCEF_NODIRECT" : "", config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
                         method->ArgumentsOutputAssignments().c_str(),
                         method->ArgumentsOutputObjectCatch( config ).c_str() );
@@ -2492,7 +2499,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                               "%s"
                               "\n"
                               "%s"
-                              "    ret = (DFBResult) %s_Call( obj, FCEF_NONE, %s%s_%s, args, %s, return_args, %s, NULL );\n"
+                              "    ret = (DFBResult) %s_Call( obj, %s, %s%s_%s, args, %s, return_args, %s, NULL );\n"
                               "    if (ret) {\n"
                               "        D_DERROR( ret, \"%%s: %s_Call( %s_%s ) failed!\\n\", __FUNCTION__ );\n"
                               "        goto out;\n"
@@ -2523,7 +2530,7 @@ FluxComp::GenerateSource( const Interface *face, const FluxConfig &config )
                         method->ArgumentsAssertions().c_str(),
                         method->ArgumentsInputAssignments().c_str(),
                         face->buffered ? "     flush();\n\n" : "",
-                        face->object.c_str(), config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(), method->ArgumentsSize( face, true ).c_str(),
+                        face->object.c_str(), method->indirect ? "(FusionCallExecFlags)FCEF_NODIRECT" : "FCEF_NONE", config.c_mode ? "_" : "", face->object.c_str(), method->name.c_str(), method->ArgumentsSize( face, false ).c_str(), method->ArgumentsSize( face, true ).c_str(),
                         face->object.c_str(), face->object.c_str(), method->name.c_str(),
                         face->object.c_str(), method->name.c_str(),
                         method->ArgumentsOutputAssignments().c_str(),
